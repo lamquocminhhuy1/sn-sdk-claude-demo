@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theo Dõi Giá Vàng</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-card: #1c2128;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --gold: #f5c518;
+            --gold-glow: rgba(245, 197, 24, 0.15);
+            --green: #3fb950;
+            --red: #f85149;
+            --blue: #58a6ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--gold);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0d1117;
+            font-weight: 900;
+            font-size: 1rem;
+        }
+
+        .header-badge {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+        }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* ── Stats ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.1rem 1.25rem;
+            transition: border-color 0.2s;
+        }
+
+        .stat-card:first-child {
+            border-color: rgba(245, 197, 24, 0.4);
+            background: linear-gradient(135deg, var(--bg-card) 60%, var(--gold-glow));
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: var(--gold);
+            line-height: 1.2;
+        }
+
+        .stat-sub {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+        }
+
+        .positive { color: var(--green) !important; }
+        .negative { color: var(--red) !important; }
+        .neutral   { color: var(--text-secondary) !important; }
+
+        /* ── Input card ── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-body { padding: 1.25rem; }
+
+        .input-row {
+            display: flex;
+            gap: 0.85rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .field label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .field input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.85rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .field input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(245,197,24,0.12);
+        }
+
+        .btn {
+            padding: 0.62rem 1.4rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: opacity 0.15s, transform 0.1s;
+            white-space: nowrap;
+        }
+
+        .btn:active { transform: scale(0.97); }
+
+        .btn-gold {
+            background: var(--gold);
+            color: #0d1117;
+        }
+
+        .btn-gold:hover { opacity: 0.88; }
+
+        .btn-sm {
+            padding: 0.3rem 0.65rem;
+            font-size: 0.75rem;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid var(--red);
+            color: var(--red);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-sm:hover { background: rgba(248,81,73,0.12); }
+
+        /* ── Chart ── */
+        .chart-wrap {
+            position: relative;
+            height: 280px;
+        }
+
+        .period-tabs {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .tab {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.28rem 0.7rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .tab.active, .tab:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        /* ── Table ── */
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        thead th {
+            background: var(--bg-secondary);
+            padding: 0.65rem 1rem;
+            text-align: left;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 600;
+        }
+
+        tbody td {
+            padding: 0.7rem 1rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        tbody tr:hover td { background: rgba(255,255,255,0.025); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.18rem 0.55rem;
+            border-radius: 20px;
+            font-size: 0.76rem;
+            font-weight: 600;
+        }
+
+        .badge-up   { background: rgba(63,185,80,0.15);  color: var(--green); }
+        .badge-down { background: rgba(248,81,73,0.15);  color: var(--red); }
+        .badge-flat { background: rgba(139,148,158,0.12); color: var(--text-secondary); }
+
+        /* ── Empty state ── */
+        .empty {
+            text-align: center;
+            padding: 3.5rem 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .empty p { font-size: 0.9rem; }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--gold);
+            padding: 0.7rem 1.1rem;
+            border-radius: 8px;
+            font-size: 0.83rem;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: all 0.25s;
+            z-index: 999;
+            pointer-events: none;
+            max-width: 280px;
+        }
+
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .container { padding: 1rem; }
+            .input-row { flex-direction: column; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .period-tabs { display: none; }
+            .chart-wrap { height: 220px; }
+            thead th:nth-child(5),
+            tbody td:nth-child(5) { display: none; }
+        }
+
+        @media (max-width: 400px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">Au</div>
+        Theo Dõi Giá Vàng
+    </div>
+    <div class="header-badge">triệu đồng / lượng</div>
+</header>
+
+<div class="container">
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Giá Bán Mới Nhất</div>
+            <div class="stat-value" id="sCurrentSell">—</div>
+            <div class="stat-sub" id="sCurrentDate">Chưa có dữ liệu</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Kỳ Trước</div>
+            <div class="stat-value" id="sPrevSell">—</div>
+            <div class="stat-sub" id="sPrevDate">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">% Thay Đổi</div>
+            <div class="stat-value" id="sChangePct">—</div>
+            <div class="stat-sub" id="sChangeAbs">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Cao Nhất (30N)</div>
+            <div class="stat-value" id="sHigh">—</div>
+            <div class="stat-sub" id="sHighDate">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Thấp Nhất (30N)</div>
+            <div class="stat-value" id="sLow">—</div>
+            <div class="stat-sub" id="sLowDate">—</div>
+        </div>
+    </div>
+
+    <!-- Input -->
+    <div class="card">
+        <div class="card-header">Nhập Giá Vàng Mới</div>
+        <div class="card-body">
+            <div class="input-row">
+                <div class="field" style="max-width:160px">
+                    <label>Ngày</label>
+                    <input type="date" id="iDate">
+                </div>
+                <div class="field">
+                    <label>Giá Mua (tr.đ/lượng)</label>
+                    <input type="number" id="iBuy" placeholder="92.50" step="0.01" min="0">
+                </div>
+                <div class="field">
+                    <label>Giá Bán (tr.đ/lượng)</label>
+                    <input type="number" id="iSell" placeholder="93.00" step="0.01" min="0">
+                </div>
+                <div class="field" style="flex:0">
+                    <label style="visibility:hidden">Thêm</label>
+                    <button class="btn btn-gold" onclick="addEntry()">+ Thêm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card">
+        <div class="card-header">
+            <span>Biểu Đồ Giá Vàng</span>
+            <div class="period-tabs">
+                <button class="tab"        onclick="setPeriod(7,  this)">7N</button>
+                <button class="tab active" onclick="setPeriod(30, this)">1T</button>
+                <button class="tab"        onclick="setPeriod(90, this)">3T</button>
+                <button class="tab"        onclick="setPeriod(0,  this)">Tất cả</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-wrap">
+                <canvas id="chartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card">
+        <div class="card-header">Lịch Sử Giá</div>
+        <div id="tableArea">
+            <div class="empty">
+                <div class="empty-icon">📊</div>
+                <p>Chưa có dữ liệu — hãy nhập giá vàng đầu tiên!</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    var STORE_KEY = 'gd_v1';
+    var entries   = [];   // [{date:'YYYY-MM-DD', buy:Number, sell:Number}]
+    var chart     = null;
+    var period    = 30;
+
+    /* ── persistence ── */
+    function load() {
+        try { entries = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch(e) { entries = []; }
+        sort();
+    }
+
+    function save() { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); }
+
+    function sort() {
+        entries.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    }
+
+    /* ── helpers ── */
+    function fmt(v)   { return v == null ? '—' : v.toFixed(2) + ' tr'; }
+    function fmtD(d)  { var p = d.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+    function pct(cur, prev) { return prev ? (cur - prev) / prev * 100 : null; }
+    function sign(n)  { return n >= 0 ? '+' : ''; }
+
+    function today() {
+        var d = new Date();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + m + '-' + dd;
+    }
+
+    /* ── add / delete ── */
+    function addEntry() {
+        var date = document.getElementById('iDate').value;
+        var buy  = parseFloat(document.getElementById('iBuy').value);
+        var sell = parseFloat(document.getElementById('iSell').value);
+
+        if (!date)            { toast('Vui lòng chọn ngày!');           return; }
+        if (!buy  || buy  <= 0) { toast('Giá mua không hợp lệ!');       return; }
+        if (!sell || sell <= 0) { toast('Giá bán không hợp lệ!');       return; }
+        if (buy  > sell)        { toast('Giá mua phải nhỏ hơn giá bán!'); return; }
+
+        var idx = entries.findIndex(function(e) { return e.date === date; });
+        if (idx >= 0) {
+            entries[idx].buy  = buy;
+            entries[idx].sell = sell;
+            toast('Đã cập nhật ngày ' + fmtD(date));
+        } else {
+            entries.push({ date: date, buy: buy, sell: sell });
+            toast('Đã thêm ngày ' + fmtD(date));
+        }
+
+        sort();
+        save();
+        render();
+
+        document.getElementById('iBuy').value  = '';
+        document.getElementById('iSell').value = '';
+    }
+
+    function delEntry(date) {
+        entries = entries.filter(function(e) { return e.date !== date; });
+        save();
+        render();
+        toast('Đã xóa ngày ' + fmtD(date));
+    }
+
+    /* ── stats ── */
+    function renderStats() {
+        var n = entries.length;
+        if (n === 0) return;
+
+        var latest = entries[n - 1];
+        var prev   = n > 1 ? entries[n - 2] : null;
+
+        document.getElementById('sCurrentSell').textContent = fmt(latest.sell);
+        document.getElementById('sCurrentDate').textContent = fmtD(latest.date);
+
+        if (prev) {
+            document.getElementById('sPrevSell').textContent = fmt(prev.sell);
+            document.getElementById('sPrevDate').textContent = fmtD(prev.date);
+
+            var p   = pct(latest.sell, prev.sell);
+            var abs = latest.sell - prev.sell;
+            var cls = p > 0 ? 'positive' : (p < 0 ? 'negative' : 'neutral');
+
+            var elPct = document.getElementById('sChangePct');
+            elPct.textContent = sign(p) + p.toFixed(2) + '%';
+            elPct.className   = 'stat-value ' + cls;
+
+            var elAbs = document.getElementById('sChangeAbs');
+            elAbs.textContent = sign(abs) + abs.toFixed(2) + ' tr';
+            elAbs.className   = 'stat-sub ' + cls;
+        }
+
+        /* 30-day high / low */
+        var cut = new Date(); cut.setDate(cut.getDate() - 30);
+        var cutStr = cut.toISOString().split('T')[0];
+        var rec = entries.filter(function(e) { return e.date >= cutStr; });
+
+        if (rec.length) {
+            var hi = rec.reduce(function(a, b) { return a.sell >= b.sell ? a : b; });
+            var lo = rec.reduce(function(a, b) { return a.sell <= b.sell ? a : b; });
+            document.getElementById('sHigh').textContent     = fmt(hi.sell);
+            document.getElementById('sHighDate').textContent = fmtD(hi.date);
+            document.getElementById('sLow').textContent      = fmt(lo.sell);
+            document.getElementById('sLowDate').textContent  = fmtD(lo.date);
+        }
+    }
+
+    /* ── chart ── */
+    function filtered() {
+        if (period === 0) return entries;
+        var cut = new Date(); cut.setDate(cut.getDate() - period);
+        var s   = cut.toISOString().split('T')[0];
+        return entries.filter(function(e) { return e.date >= s; });
+    }
+
+    function renderChart() {
+        var data   = filtered();
+        var labels = data.map(function(e) { return fmtD(e.date); });
+        var sells  = data.map(function(e) { return e.sell; });
+        var buys   = data.map(function(e) { return e.buy; });
+
+        if (chart) {
+            chart.data.labels         = labels;
+            chart.data.datasets[0].data = sells;
+            chart.data.datasets[1].data = buys;
+            chart.update('active');
+            return;
+        }
+
+        var ctx = document.getElementById('chartCanvas').getContext('2d');
+
+        var gradient = ctx.createLinearGradient(0, 0, 0, 280);
+        gradient.addColorStop(0,   'rgba(245,197,24,0.25)');
+        gradient.addColorStop(1,   'rgba(245,197,24,0)');
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Giá Bán',
+                        data: sells,
+                        borderColor: '#f5c518',
+                        backgroundColor: gradient,
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#f5c518',
+                        pointBorderColor: '#0d1117',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.35,
+                        fill: true
+                    },
+                    {
+                        label: 'Giá Mua',
+                        data: buys,
+                        borderColor: '#58a6ff',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#58a6ff',
+                        pointBorderColor: '#0d1117',
+                        pointBorderWidth: 2,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.35,
+                        fill: false,
+                        borderDash: [4, 3]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#8b949e',
+                            font: { size: 12 },
+                            boxWidth: 20,
+                            padding: 16
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1c2128',
+                        borderColor: '#30363d',
+                        borderWidth: 1,
+                        titleColor: '#e6edf3',
+                        bodyColor: '#8b949e',
+                        padding: 10,
+                        callbacks: {
+                            label: function(ctx) {
+                                return '  ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + ' tr.đ/lượng';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#8b949e', font: { size: 11 }, maxRotation: 45 },
+                        grid:  { color: 'rgba(48,54,61,0.6)' }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#8b949e',
+                            font:  { size: 11 },
+                            callback: function(v) { return v.toFixed(1) + ' tr'; }
+                        },
+                        grid: { color: 'rgba(48,54,61,0.6)' }
+                    }
+                }
+            }
+        });
+    }
+
+    /* ── table ── */
+    function renderTable() {
+        var el = document.getElementById('tableArea');
+
+        if (entries.length === 0) {
+            el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Chưa có dữ liệu — hãy nhập giá vàng đầu tiên!</p></div>';
+            return;
+        }
+
+        var rows = '';
+        var rev  = entries.slice().reverse();
+
+        for (var i = 0; i < rev.length; i++) {
+            var e   = rev[i];
+            var oi  = entries.indexOf(e);
+            var prv = oi > 0 ? entries[oi - 1] : null;
+            var p   = prv ? pct(e.sell, prv.sell) : null;
+
+            var pctHtml = '—';
+            if (p !== null) {
+                var badgeCls = p > 0.001 ? 'badge-up' : (p < -0.001 ? 'badge-down' : 'badge-flat');
+                var arrow    = p > 0.001 ? '▲' : (p < -0.001 ? '▼' : '●');
+                pctHtml = '<span class="badge ' + badgeCls + '">' + arrow + ' ' + sign(p) + p.toFixed(2) + '%</span>';
+            }
+
+            var spread = (e.sell - e.buy).toFixed(2);
+            var d = e.date; /* captured for onclick */
+
+            rows += '<tr>' +
+                '<td style="font-weight:500">' + fmtD(d) + '</td>' +
+                '<td style="color:var(--blue)">' + fmt(e.buy) + '</td>' +
+                '<td style="color:var(--gold);font-weight:600">' + fmt(e.sell) + '</td>' +
+                '<td>' + pctHtml + '</td>' +
+                '<td style="color:var(--text-secondary)">' + spread + ' tr</td>' +
+                '<td><button class="btn-sm" onclick="delEntry(\'' + d + '\')">Xóa</button></td>' +
+                '</tr>';
+        }
+
+        el.innerHTML = '<div class="table-wrap"><table>' +
+            '<thead><tr>' +
+            '<th>Ngày</th><th>Giá Mua</th><th>Giá Bán</th>' +
+            '<th>% Thay Đổi</th><th>Chênh Lệch</th><th></th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }
+
+    /* ── orchestrate ── */
+    function render() {
+        renderStats();
+        renderChart();
+        renderTable();
+    }
+
+    function setPeriod(days, btn) {
+        period = days;
+        document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        renderChart();
+    }
+
+    /* ── toast ── */
+    var toastTimer;
+    function toast(msg) {
+        clearTimeout(toastTimer);
+        var el = document.getElementById('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2600);
+    }
+
+    /* ── init ── */
+    load();
+    document.getElementById('iDate').value = today();
+    render();
+
+    document.getElementById('iSell').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') addEntry();
+    });
+</script>
+</body>
+</html>
