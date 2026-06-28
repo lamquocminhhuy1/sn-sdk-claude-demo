@@ -1,0 +1,13 @@
+{
+  "name": "x-demo-claude-app",
+  "version": "1.0.0",
+  "description": "ServiceNow Scoped App - Claude Demo",
+  "scripts": {
+    "deploy": "snc ui-component deploy",
+    "develop": "snc ui-component develop",
+    "lint": "snc lint"
+  },
+  "devDependencies": {
+    "@servicenow/cli": "latest"
+  }
+}

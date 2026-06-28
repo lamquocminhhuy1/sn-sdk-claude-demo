@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application>
+    <scope>x_demo_claude_app</scope>
+    <name>Claude Demo App</name>
+    <version>1.0.0</version>
+    <vendor>Demo</vendor>
+    <vendor_prefix>x_demo</vendor_prefix>
+    <platform_version>Xanadu</platform_version>
+    <active>true</active>
+    <private>false</private>
+</application>
