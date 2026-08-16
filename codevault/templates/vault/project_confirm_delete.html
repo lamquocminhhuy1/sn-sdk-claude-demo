@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ project.name }} · CodeVault{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width:520px">
+  <h1>Delete project</h1>
+  <p>Delete <strong>{{ project.name }}</strong> and all {{ project.items.count }} item(s) in it?
+     Uploaded files will be removed from disk as well. This cannot be undone.</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn danger" type="submit">Yes, delete everything</button>
+    <a class="btn secondary" href="{{ project.get_absolute_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

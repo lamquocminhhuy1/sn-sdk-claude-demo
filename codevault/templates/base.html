@@ -9,10 +9,10 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="{% url 'item_list' %}">Code<span>Vault</span></a>
+    <a class="brand" href="{% url 'project_list' %}">Code<span>Vault</span></a>
     <nav>
       {% if user.is_authenticated %}
-        <a href="{% url 'item_create' %}">+ New item</a>
+        <a href="{% url 'project_list' %}">Projects</a>
         <a href="{% url 'admin:index' %}">Admin</a>
         <form method="post" action="{% url 'logout' %}">
           {% csrf_token %}

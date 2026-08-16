@@ -1,15 +1,39 @@
 from django import forms
 
-from .models import Item
+from .models import Item, Project
 
 ALLOWED_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
 ALLOWED_XML_EXTENSIONS = (".xml", ".xsd", ".xsl", ".xslt", ".wsdl")
 
 
+class ProjectForm(forms.ModelForm):
+    class Meta:
+        model = Project
+        fields = ["name", "description"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={"autofocus": "autofocus", "placeholder": "e.g. Incident auto-assignment"}
+            ),
+            "description": forms.Textarea(
+                attrs={"rows": 3, "placeholder": "What is this project about?"}
+            ),
+        }
+
+
 class ItemForm(forms.ModelForm):
     class Meta:
         model = Item
-        fields = ["kind", "title", "language", "content", "upload", "note"]
+        fields = [
+            "kind",
+            "script_type",
+            "title",
+            "identifier",
+            "related_to",
+            "language",
+            "content",
+            "upload",
+            "note",
+        ]
         widgets = {
             "content": forms.Textarea(
                 attrs={
@@ -22,7 +46,25 @@ class ItemForm(forms.ModelForm):
                 attrs={"rows": 3, "placeholder": "Optional note or prompt for Claude..."}
             ),
             "title": forms.TextInput(attrs={"autofocus": "autofocus"}),
+            "identifier": forms.TextInput(
+                attrs={"placeholder": "e.g. CalcUtils (auto-detected if empty)"}
+            ),
         }
+
+    def __init__(self, *args, **kwargs):
+        self.project = kwargs.pop("project", None)
+        super().__init__(*args, **kwargs)
+        # Screenshots attach to a script in the same project.
+        scripts = Item.objects.none()
+        if self.project:
+            scripts = self.project.items.exclude(kind=Item.Kind.IMAGE)
+            if self.instance and self.instance.pk:
+                scripts = scripts.exclude(pk=self.instance.pk)
+        self.fields["related_to"].queryset = scripts
+        self.fields["related_to"].label = "Attach to script"
+        self.fields["related_to"].help_text = (
+            "For screenshots: which script in this project it belongs to."
+        )
 
     def clean(self):
         cleaned = super().clean()

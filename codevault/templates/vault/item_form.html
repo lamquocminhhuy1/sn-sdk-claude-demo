@@ -3,8 +3,10 @@
 {% block title %}{% if is_edit %}Edit{% else %}New item{% endif %} · CodeVault{% endblock %}
 
 {% block content %}
+<div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> / <strong>{% if is_edit %}Edit{% else %}New item{% endif %}</strong></div>
+
 <div class="page-head">
-  <h1>{% if is_edit %}Edit: {{ item.title }}{% else %}New item{% endif %}</h1>
+  <h1>{% if is_edit %}Edit: {{ item.title }}{% else %}New item in {{ project.name }}{% endif %}</h1>
 </div>
 
 <div class="panel">
@@ -18,10 +20,31 @@
       {{ form.kind }}
     </p>
 
+    {{ form.script_type.errors }}
+    <p>
+      <label for="id_script_type">Script type</label>
+      {{ form.script_type }}
+      <span class="helptext">What kind of ServiceNow artifact this is (used in the dependency tree).</span>
+    </p>
+
     {{ form.title.errors }}
     <p>
       <label for="id_title">Title</label>
       {{ form.title }}
+    </p>
+
+    {{ form.identifier.errors }}
+    <p>
+      <label for="id_identifier">Identifier</label>
+      {{ form.identifier }}
+      <span class="helptext">{{ form.identifier.help_text }}</span>
+    </p>
+
+    {{ form.related_to.errors }}
+    <p>
+      <label for="id_related_to">Attach to script</label>
+      {{ form.related_to }}
+      <span class="helptext">{{ form.related_to.help_text }}</span>
     </p>
 
     <div id="dropzone" class="dropzone">
@@ -62,7 +85,7 @@
     {% if not is_edit %}
       <button class="btn secondary" type="submit" name="save_and_add" value="1">Save &amp; add another</button>
     {% endif %}
-    <a class="btn secondary" href="{% if is_edit %}{{ item.get_absolute_url }}{% else %}{% url 'item_list' %}{% endif %}">Cancel</a>
+    <a class="btn secondary" href="{% if is_edit %}{{ item.get_absolute_url }}{% else %}{{ project.get_absolute_url }}{% endif %}">Cancel</a>
   </form>
 </div>
 {% endblock %}

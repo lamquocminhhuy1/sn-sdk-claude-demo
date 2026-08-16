@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Projects · CodeVault{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Projects</h1>
+  <a class="btn" href="{% url 'project_create' %}">+ New project</a>
+</div>
+
+<div class="filters">
+  <form method="get">
+    <input type="text" name="q" value="{{ query }}" placeholder="Find a project...">
+    <button class="btn secondary small" type="submit">Search</button>
+  </form>
+</div>
+
+{% if projects %}
+  <div class="repo-list">
+    {% for project in projects %}
+      <div class="repo-row">
+        <div class="repo-main">
+          <h3><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></h3>
+          {% if project.description %}<p>{{ project.description }}</p>{% endif %}
+          <div class="meta">
+            {{ project.script_count }} script{{ project.script_count|pluralize }} ·
+            {{ project.image_count }} screenshot{{ project.image_count|pluralize }} ·
+            updated {{ project.updated_at|date:"Y-m-d H:i" }}
+          </div>
+        </div>
+        <div class="repo-actions">
+          <a class="btn secondary small" href="{% url 'project_dependencies' project.slug %}">Dependencies</a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    <p>No projects yet. A project is a folder for one piece of work — its scripts, XML exports, and screenshots.</p>
+    <a class="btn" href="{% url 'project_create' %}">Create your first project</a>
+  </div>
+{% endif %}
+{% endblock %}

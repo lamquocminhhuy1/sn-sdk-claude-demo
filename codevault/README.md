@@ -4,13 +4,21 @@ Website Django cá nhân để lưu **screenshot**, **source code** và **file X
 
 ## Tính năng
 
+- **Project kiểu GitHub** — mỗi dự án một "thư mục" chứa các script, file XML và screenshot liên quan.
 - **Đăng nhập bắt buộc** — toàn bộ dữ liệu (kể cả file ảnh/XML) đều nằm sau login, không ai xem được nếu không có tài khoản.
-- **Lưu screenshot**: paste trực tiếp từ clipboard (Ctrl+V) hoặc kéo-thả ảnh vào trang tạo mới — không cần lưu file ra desktop trước.
-- **Lưu source code**: paste code, chọn ngôn ngữ, xem lại với nút **Copy** 1 click và chế độ **Raw** (text thuần) để copy nhanh vào Claude.
+- **Lưu screenshot**: paste trực tiếp từ clipboard (Ctrl+V) hoặc kéo-thả ảnh — và **gắn screenshot vào đúng script** mà nó liên quan.
+- **Lưu source code**: paste code, chọn loại artifact ServiceNow (Script Include, Business Rule, UI Page...), nút **Copy** 1 click và chế độ **Raw** (text thuần) để copy nhanh vào Claude.
 - **Lưu XML**: paste nội dung XML hoặc upload file `.xml` (update set, story export...), có nút Copy/Download.
+- **Dependency tự động**: mỗi script có một *identifier* (ví dụ tên class của Script Include, tự trích từ `Class.create()`). Web app quét code của các script khác trong cùng project — nếu script A nhắc đến identifier của script B thì ghi nhận "A depends on B" và **vẽ cây dependency** (tab *Dependency tree* của project). Trang chi tiết mỗi script hiển thị **Depends on / Used by**.
 - **Ghi chú kèm theo**: mỗi item có field Note để ghi sẵn câu hỏi/context định hỏi Claude.
-- Tìm kiếm theo tiêu đề/nội dung/ghi chú, lọc theo loại, phân trang.
-- Xoá item sẽ xoá luôn file trên disk (giữ quota 512 MB của bản free).
+- Tìm kiếm theo tiêu đề/identifier/nội dung/ghi chú, lọc theo loại, phân trang.
+- Xoá item/project sẽ xoá luôn file trên disk (giữ quota 512 MB của bản free).
+
+### Cách dependency detection hoạt động
+
+1. Khi lưu một script, nếu để trống **Identifier** thì app tự đoán: tìm `var X = Class.create()` trong code, hoặc lấy title nếu title là 1 từ. Bạn có thể sửa tay khi app đoán sai.
+2. Sau mỗi lần thêm/sửa/xoá item, app quét lại toàn bộ project: code của script nào chứa identifier của script khác (khớp nguyên từ, không khớp chuỗi con) thì tạo liên kết dependency.
+3. Tab **Dependency tree** vẽ cây: các entry point (không bị script nào gọi — thường là Business Rule, UI Page) ở gốc, các script chúng gọi lồng bên dưới. Có nút **Rescan** để quét lại thủ công.
 
 ## Chạy local
 

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_edit %}Edit project{% else %}New project{% endif %} · CodeVault{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{% if is_edit %}Edit: {{ project.name }}{% else %}New project{% endif %}</h1>
+</div>
+
+<div class="panel" style="max-width:640px">
+  <form class="item-form" method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    {{ form.name.errors }}
+    <p>
+      <label for="id_name">Project name</label>
+      {{ form.name }}
+    </p>
+
+    {{ form.description.errors }}
+    <p>
+      <label for="id_description">Description</label>
+      {{ form.description }}
+    </p>
+
+    <button class="btn" type="submit">{% if is_edit %}Save{% else %}Create project{% endif %}</button>
+    <a class="btn secondary" href="{% if is_edit %}{{ project.get_absolute_url }}{% else %}{% url 'project_list' %}{% endif %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

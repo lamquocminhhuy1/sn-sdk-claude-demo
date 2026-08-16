@@ -3,14 +3,18 @@
 {% block title %}{{ item.title }} · CodeVault{% endblock %}
 
 {% block content %}
+<div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> / <strong>{{ item.title|truncatechars:40 }}</strong></div>
+
 <div class="detail-head">
   <div>
     <h1>{{ item.title }}</h1>
     <div class="detail-meta">
-      <span class="kind {{ item.kind }}">{{ item.get_kind_display }}</span>
+      <span class="badge {{ item.script_type }}">{% if item.kind == 'image' %}Screenshot{% elif item.kind == 'xml' and item.script_type == 'other' %}XML{% else %}{{ item.get_script_type_display }}{% endif %}</span>
+      {% if item.identifier %} <code>{{ item.identifier }}</code>{% endif %}
       · {{ item.created_at|date:"Y-m-d H:i" }}
       {% if item.kind == 'code' %} · {{ item.get_language_display }}{% endif %}
       {% if item.upload %} · {{ item.filename }}{% endif %}
+      {% if item.related_to %} · attached to <a href="{{ item.related_to.get_absolute_url }}">{{ item.related_to.title }}</a>{% endif %}
     </div>
   </div>
   <div class="detail-actions">
@@ -21,10 +25,41 @@
     {% if item.upload %}
       <a class="btn secondary small" href="{% url 'serve_media' item.upload.name %}?download=1">Download file</a>
     {% endif %}
+    {% if not item.is_image %}
+      <a class="btn secondary small" href="{% url 'item_create' project.slug %}?related_to={{ item.pk }}">+ Screenshot</a>
+    {% endif %}
     <a class="btn secondary small" href="{% url 'item_edit' item.pk %}">Edit</a>
     <a class="btn danger small" href="{% url 'item_delete' item.pk %}">Delete</a>
   </div>
 </div>
+
+{% if depends_on or used_by %}
+  <div class="dep-panel">
+    {% if depends_on %}
+      <div class="dep-col">
+        <h3>Depends on ({{ depends_on|length }})</h3>
+        <ul class="flat-list">
+          {% for dep in depends_on %}
+            <li><span class="badge {{ dep.script_type }}">{{ dep.get_script_type_display }}</span>
+                <a href="{{ dep.get_absolute_url }}">{{ dep.title }}</a>
+                {% if dep.identifier %}<code>{{ dep.identifier }}</code>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {% if used_by %}
+      <div class="dep-col">
+        <h3>Used by ({{ used_by|length }})</h3>
+        <ul class="flat-list">
+          {% for dep in used_by %}
+            <li><span class="badge {{ dep.script_type }}">{{ dep.get_script_type_display }}</span>
+                <a href="{{ dep.get_absolute_url }}">{{ dep.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
 
 {% if item.note %}
   <div class="note-box">{{ item.note }}</div>
@@ -45,5 +80,22 @@
   </div>
 {% endif %}
 
-<p style="margin-top:20px"><a href="{% url 'item_list' %}">&larr; Back to list</a></p>
+{% if screenshots %}
+  <h2 class="section-title">Screenshots ({{ screenshots|length }})</h2>
+  <div class="grid">
+    {% for shot in screenshots %}
+      <div class="card">
+        <h3><a href="{{ shot.get_absolute_url }}">{{ shot.title }}</a></h3>
+        {% if shot.upload %}
+          <a href="{{ shot.get_absolute_url }}">
+            <img class="thumb" src="{% url 'serve_media' shot.upload.name %}" alt="{{ shot.title }}">
+          </a>
+        {% endif %}
+        <div class="meta">{{ shot.created_at|date:"Y-m-d H:i" }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<p style="margin-top:20px"><a href="{{ project.get_absolute_url }}">&larr; Back to {{ project.name }}</a></p>
 {% endblock %}

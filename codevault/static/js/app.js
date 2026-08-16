@@ -186,11 +186,17 @@
       var contentRow = fieldRow("id_content");
       var languageRow = fieldRow("id_language");
       var uploadRow = fieldRow("id_upload");
+      var scriptTypeRow = fieldRow("id_script_type");
+      var identifierRow = fieldRow("id_identifier");
+      var relatedRow = fieldRow("id_related_to");
 
       if (zone) { zone.style.display = kind === "image" ? "" : "none"; }
       if (contentRow) { contentRow.style.display = kind === "image" ? "none" : ""; }
       if (languageRow) { languageRow.style.display = kind === "code" ? "" : "none"; }
       if (uploadRow) { uploadRow.style.display = kind === "code" ? "none" : ""; }
+      if (scriptTypeRow) { scriptTypeRow.style.display = kind === "image" ? "none" : ""; }
+      if (identifierRow) { identifierRow.style.display = kind === "image" ? "none" : ""; }
+      if (relatedRow) { relatedRow.style.display = kind === "image" ? "" : "none"; }
     }
 
     kindSelect.addEventListener("change", apply);

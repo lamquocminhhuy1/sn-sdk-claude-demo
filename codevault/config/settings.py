@@ -108,7 +108,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "item_list"
+LOGIN_REDIRECT_URL = "project_list"
 LOGOUT_REDIRECT_URL = "login"
 
 if not DEBUG:
