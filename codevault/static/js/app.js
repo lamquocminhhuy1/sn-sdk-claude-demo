@@ -384,6 +384,29 @@
     apply();
   }
 
+  /* ---- Dependency-tree filter ----------------------------------------- */
+
+  function initDepsFilter() {
+    var input = document.getElementById("deps-filter");
+    if (!input) { return; }
+    input.addEventListener("input", function () {
+      var q = input.value.toLowerCase();
+      var nodes = document.querySelectorAll(".tree-node");
+      var cards = document.querySelectorAll(".sa-card");
+      var i;
+      // A tree node stays visible when its subtree mentions the query,
+      // so ancestors of a match never disappear.
+      for (i = 0; i < nodes.length; i++) {
+        nodes[i].style.display =
+          !q || nodes[i].textContent.toLowerCase().indexOf(q) !== -1 ? "" : "none";
+      }
+      for (i = 0; i < cards.length; i++) {
+        cards[i].style.display =
+          !q || cards[i].textContent.toLowerCase().indexOf(q) !== -1 ? "" : "none";
+      }
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     initCopyButtons();
     initEditor();
@@ -392,5 +415,6 @@
     initKindSwitch();
     initIdentifierToggle();
     initThemeToggle();
+    initDepsFilter();
   });
 })();

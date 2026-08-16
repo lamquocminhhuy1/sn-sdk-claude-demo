@@ -3,14 +3,23 @@
 {% block title %}Dependencies · {{ project.name }} · CodeVault{% endblock %}
 
 {% block content %}
-<div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> / <strong>Dependencies</strong></div>
+<div class="breadcrumb">
+  <a href="{% url 'project_list' %}">Projects</a> <span class="sep">/</span>
+  <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> <span class="sep">/</span>
+  <strong>Dependency Tree</strong>
+</div>
 
 <div class="page-head">
   <h1>Dependency tree</h1>
-  <form method="post">
-    {% csrf_token %}
-    <button class="btn secondary" type="submit" title="Rescan all scripts in this project for calls to each other's identifiers">&#8635; Rescan</button>
-  </form>
+  <div class="detail-actions">
+    <span class="searchbox">
+      <input type="text" id="deps-filter" placeholder="Filter scripts..." autocomplete="off">
+    </span>
+    <form method="post" style="margin:0">
+      {% csrf_token %}
+      <button class="btn secondary" type="submit" title="Rescan all scripts in this project for calls to each other's identifiers">&#8635; Rescan</button>
+    </form>
+  </div>
 </div>
 
 <div class="tabs">
@@ -24,35 +33,33 @@
   identifier, A is shown as depending on B. Entry points (nothing calls them) are at the top.
 </p>
 
-{% if roots %}
-  <div class="panel">
+<div class="panel deps-panel">
+  {% if roots %}
     <ul class="tree tree-root">
       {% for node in roots %}
-        {% include "vault/_tree_node.html" with node=node %}
+        {% include "vault/_tree_node.html" with node=node root=True %}
       {% endfor %}
     </ul>
-  </div>
-{% else %}
-  <div class="empty">
-    <p>No dependencies detected between scripts in this project yet.</p>
-    <p class="hint">Add scripts that call each other — e.g. a Business Rule that uses a
-    Script Include — then hit Rescan. Make sure the called script's identifier is set
-    (check it on the item's edit page).</p>
-  </div>
-{% endif %}
+  {% else %}
+    <div class="empty" style="border:none;background:none">
+      <p>No dependencies detected between scripts in this project yet.</p>
+      <p class="hint" style="margin:6px auto 0">Add scripts that call each other — e.g. a Business Rule that uses a
+      Script Include — then hit Rescan. Make sure the called script's identifier is set
+      (check it on the item's edit page).</p>
+    </div>
+  {% endif %}
 
-{% if standalone %}
-  <h2 class="section-title">Standalone scripts (no links detected)</h2>
-  <div class="panel">
-    <ul class="flat-list">
+  {% if standalone %}
+    <hr class="rule">
+    <h2 class="sa-title"><span class="h-ico">&#8856;</span> Standalone Scripts (No Dependencies)</h2>
+    <div class="sa-grid">
       {% for item in standalone %}
-        <li>
+        <a class="sa-card" href="{{ item.get_absolute_url }}">
+          <span class="sa-name">{{ item.title }}</span>
           <span class="badge {{ item.script_type }}">{% if item.kind == 'xml' %}XML{% else %}{{ item.get_script_type_display }}{% endif %}</span>
-          <a href="{{ item.get_absolute_url }}">{{ item.title }}</a>
-          {% if item.identifier %}<code>{{ item.identifier }}</code>{% endif %}
-        </li>
+        </a>
       {% endfor %}
-    </ul>
-  </div>
-{% endif %}
+    </div>
+  {% endif %}
+</div>
 {% endblock %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load vault_extras %}
 
 {% block title %}Projects · CodeVault{% endblock %}
 
@@ -30,7 +31,7 @@
             <span class="stat" title="Scripts"><span class="ico">&lt;&gt;</span> {{ project.script_count }}</span>
             <span class="stat" title="Screenshots"><span class="ico">&#9634;</span> {{ project.image_count }}</span>
           </div>
-          <div class="repo-updated">Updated {{ project.updated_at|timesince }} ago</div>
+          <div class="repo-updated">Updated {{ project.updated_at|ago }}</div>
           <div class="repo-actions">
             <a class="btn secondary small" href="{% url 'project_dependencies' project.slug %}">Dependencies</a>
           </div>

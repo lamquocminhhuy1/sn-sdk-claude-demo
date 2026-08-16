@@ -1,17 +1,17 @@
 <li class="tree-node">
-  <div class="tree-card {% if node.cycle %}cycle{% endif %}">
+  <div class="tree-card {% if node.cycle %}cycle{% endif %} {% if root %}root{% endif %}">
     <span class="badge {{ node.item.script_type }}">{% if node.item.kind == 'xml' %}XML{% else %}{{ node.item.get_script_type_display }}{% endif %}</span>
     <a href="{{ node.item.get_absolute_url }}">{{ node.item.title }}</a>
-    {% if node.item.identifier %}<code>{{ node.item.identifier }}</code>{% endif %}
-    {% if node.cycle %}<span class="cycle-tag">circular ↩</span>{% endif %}
     {% with shots=node.item.screenshots %}
-      {% if shots %}<span class="shot-count" title="{{ shots.count }} screenshot(s)">📷 {{ shots.count }}</span>{% endif %}
+      {% if shots %}<span class="shot-count" title="{{ shots.count }} screenshot(s)">&#9634; {{ shots.count }}</span>{% endif %}
     {% endwith %}
+    {% if node.cycle %}<span class="cycle-pill">&#8617; CIRCULAR</span>{% endif %}
+    {% if node.item.identifier %}<code class="{% if root %}push-right{% endif %}">{{ node.item.identifier }}</code>{% endif %}
   </div>
   {% if node.children %}
     <ul class="tree">
       {% for child in node.children %}
-        {% include "vault/_tree_node.html" with node=child %}
+        {% include "vault/_tree_node.html" with node=child root=False %}
       {% endfor %}
     </ul>
   {% endif %}
