@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}My items · CodeVault{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>My items</h1>
+  <a class="btn" href="{% url 'item_create' %}">+ New item</a>
+</div>
+
+<div class="filters">
+  <a class="tab {% if not kind %}active{% endif %}" href="?q={{ query|urlencode }}">All</a>
+  {% for value, label in kinds %}
+    <a class="tab {% if kind == value %}active{% endif %}"
+       href="?kind={{ value }}&amp;q={{ query|urlencode }}">{{ label }}</a>
+  {% endfor %}
+  <form method="get">
+    {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    <input type="text" name="q" value="{{ query }}" placeholder="Search title, note, content...">
+    <button class="btn secondary small" type="submit">Search</button>
+  </form>
+</div>
+
+{% if page.object_list %}
+  <div class="grid">
+    {% for item in page.object_list %}
+      <div class="card">
+        <span class="kind {{ item.kind }}">{{ item.get_kind_display }}</span>
+        <h3><a href="{{ item.get_absolute_url }}">{{ item.title }}</a></h3>
+        {% if item.is_image and item.upload %}
+          <a href="{{ item.get_absolute_url }}">
+            <img class="thumb" src="{% url 'serve_media' item.upload.name %}" alt="{{ item.title }}">
+          </a>
+        {% elif item.has_text %}
+          <pre class="preview">{{ item.content|truncatechars:300 }}</pre>
+        {% elif item.upload %}
+          <pre class="preview">{{ item.filename }}</pre>
+        {% endif %}
+        <div class="meta">
+          {{ item.created_at|date:"Y-m-d H:i" }}
+          {% if item.kind == 'code' %} · {{ item.get_language_display }}{% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if page.has_other_pages %}
+    <div class="pagination">
+      {% if page.has_previous %}
+        <a href="?page={{ page.previous_page_number }}&amp;kind={{ kind }}&amp;q={{ query|urlencode }}">&laquo; Prev</a>
+      {% endif %}
+      <span class="current">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}
+        <a href="?page={{ page.next_page_number }}&amp;kind={{ kind }}&amp;q={{ query|urlencode }}">Next &raquo;</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    <p>No items yet.</p>
+    <a class="btn" href="{% url 'item_create' %}">Save your first snippet or screenshot</a>
+  </div>
+{% endif %}
+{% endblock %}

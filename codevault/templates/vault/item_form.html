@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_edit %}Edit{% else %}New item{% endif %} · CodeVault{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{% if is_edit %}Edit: {{ item.title }}{% else %}New item{% endif %}</h1>
+</div>
+
+<div class="panel">
+  <form class="item-form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    {{ form.kind.errors }}
+    <p>
+      <label for="id_kind">Type</label>
+      {{ form.kind }}
+    </p>
+
+    {{ form.title.errors }}
+    <p>
+      <label for="id_title">Title</label>
+      {{ form.title }}
+    </p>
+
+    <div id="dropzone" class="dropzone">
+      <div class="dz-label">
+        Paste a screenshot here (Ctrl+V / Cmd+V) or drag &amp; drop an image
+      </div>
+    </div>
+
+    {{ form.language.errors }}
+    <p>
+      <label for="id_language">Language</label>
+      {{ form.language }}
+    </p>
+
+    {{ form.content.errors }}
+    <p>
+      <label for="id_content">Content</label>
+      {{ form.content }}
+    </p>
+
+    {{ form.upload.errors }}
+    <p>
+      <label for="id_upload">File</label>
+      {{ form.upload }}
+      {% if is_edit and item.upload %}
+        <span class="helptext">Current file: {{ item.filename }} (choosing a new file replaces it)</span>
+      {% endif %}
+    </p>
+
+    {{ form.note.errors }}
+    <p>
+      <label for="id_note">Note</label>
+      {{ form.note }}
+      <span class="helptext">Optional: context or the question you want to ask Claude.</span>
+    </p>
+
+    <button class="btn" type="submit">Save</button>
+    {% if not is_edit %}
+      <button class="btn secondary" type="submit" name="save_and_add" value="1">Save &amp; add another</button>
+    {% endif %}
+    <a class="btn secondary" href="{% if is_edit %}{{ item.get_absolute_url }}{% else %}{% url 'item_list' %}{% endif %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

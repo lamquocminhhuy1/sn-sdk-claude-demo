@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item.title }} · CodeVault{% endblock %}
+
+{% block content %}
+<div class="detail-head">
+  <div>
+    <h1>{{ item.title }}</h1>
+    <div class="detail-meta">
+      <span class="kind {{ item.kind }}">{{ item.get_kind_display }}</span>
+      · {{ item.created_at|date:"Y-m-d H:i" }}
+      {% if item.kind == 'code' %} · {{ item.get_language_display }}{% endif %}
+      {% if item.upload %} · {{ item.filename }}{% endif %}
+    </div>
+  </div>
+  <div class="detail-actions">
+    {% if item.has_text %}
+      <button class="btn secondary small copy-btn" data-copy-target="item-content">Copy content</button>
+      <a class="btn secondary small" href="{% url 'item_raw' item.pk %}" target="_blank" rel="noopener">Raw</a>
+    {% endif %}
+    {% if item.upload %}
+      <a class="btn secondary small" href="{% url 'serve_media' item.upload.name %}?download=1">Download file</a>
+    {% endif %}
+    <a class="btn secondary small" href="{% url 'item_edit' item.pk %}">Edit</a>
+    <a class="btn danger small" href="{% url 'item_delete' item.pk %}">Delete</a>
+  </div>
+</div>
+
+{% if item.note %}
+  <div class="note-box">{{ item.note }}</div>
+{% endif %}
+
+{% if item.is_image and item.upload %}
+  <div class="shot">
+    <a href="{% url 'serve_media' item.upload.name %}" target="_blank" rel="noopener">
+      <img src="{% url 'serve_media' item.upload.name %}" alt="{{ item.title }}">
+    </a>
+  </div>
+{% endif %}
+
+{% if item.has_text %}
+  <div class="codeblock">
+    <button class="copy-btn" data-copy-target="item-content">Copy</button>
+    <pre id="item-content">{{ item.content }}</pre>
+  </div>
+{% endif %}
+
+<p style="margin-top:20px"><a href="{% url 'item_list' %}">&larr; Back to list</a></p>
+{% endblock %}

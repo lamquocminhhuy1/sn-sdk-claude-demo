@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Login · CodeVault{% endblock %}
+
+{% block content %}
+<div class="login-wrap panel">
+  <h1>CodeVault</h1>
+  {% if form.errors %}
+    <ul class="errorlist"><li>Wrong username or password.</li></ul>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <p>
+      <label for="id_username">Username</label>
+      <input type="text" name="username" id="id_username" autofocus required>
+    </p>
+    <p>
+      <label for="id_password">Password</label>
+      <input type="password" name="password" id="id_password" required>
+    </p>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="btn">Sign in</button>
+  </form>
+</div>
+{% endblock %}

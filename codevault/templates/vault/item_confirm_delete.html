@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ item.title }} · CodeVault{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width:520px">
+  <h1>Delete item</h1>
+  <p>Delete <strong>{{ item.title }}</strong> ({{ item.get_kind_display }})?
+     {% if item.upload %}The uploaded file will be removed from disk as well.{% endif %}</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn danger" type="submit">Yes, delete</button>
+    <a class="btn secondary" href="{{ item.get_absolute_url }}">Cancel</a>
+  </form>
+</div>
+{% endblock %}
