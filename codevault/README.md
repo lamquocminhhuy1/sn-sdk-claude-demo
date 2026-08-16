@@ -36,6 +36,21 @@ Mở http://127.0.0.1:8000 và đăng nhập bằng tài khoản vừa tạo.
 
 Bản **free đủ dùng** cho mục đích này: 1 web app tại `<username>.pythonanywhere.com`, 512 MB disk, HTTPS sẵn. Chỉ cần lên bản Developer ($5) nếu bạn hết disk (nhiều screenshot) hoặc muốn web app không bị "sleep" (bản free phải bấm "Run until 3 months from today" mỗi 3 tháng).
 
+### Cách nhanh: script tự động (khuyên dùng)
+
+1. Tạo API token: **Account → API Token → Create a new API token**.
+2. Mở **Bash console** trên PythonAnywhere (tab Consoles) và dán:
+
+```bash
+export PA_TOKEN=<token của bạn>
+git clone https://github.com/lamquocminhhuy1/sn-sdk-claude-demo.git
+bash sn-sdk-claude-demo/codevault/deploy_on_pythonanywhere.sh
+```
+
+Script tự làm toàn bộ: virtualenv, cài dependencies, migrate, tạo user `admin` với mật khẩu ngẫu nhiên (in ra ở cuối), collectstatic, tạo web app + WSGI + static mapping qua API, reload. Chạy lại script để **update phiên bản mới** (`cd ~/sn-sdk-claude-demo && git pull` trước) — database và mật khẩu giữ nguyên. Xong thì **revoke API token**.
+
+### Cách thủ công (từng bước)
+
 ### 1. Đưa code lên
 
 Mở **Bash console** trên PythonAnywhere:
