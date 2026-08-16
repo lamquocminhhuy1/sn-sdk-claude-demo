@@ -43,9 +43,11 @@ Bản **free đủ dùng** cho mục đích này: 1 web app tại `<username>.py
 
 ```bash
 export PA_TOKEN=<token của bạn>
-git clone https://github.com/lamquocminhhuy1/sn-sdk-claude-demo.git
+git clone -b claude/django-code-screenshot-storage-d9xdr8 https://github.com/lamquocminhhuy1/sn-sdk-claude-demo.git
 bash sn-sdk-claude-demo/codevault/deploy_on_pythonanywhere.sh
 ```
+
+(Sau khi merge branch vào default branch thì bỏ `-b ...` đi.)
 
 Script tự làm toàn bộ: virtualenv, cài dependencies, migrate, tạo user `admin` với mật khẩu ngẫu nhiên (in ra ở cuối), collectstatic, tạo web app + WSGI + static mapping qua API, reload. Chạy lại script để **update phiên bản mới** (`cd ~/sn-sdk-claude-demo && git pull` trước) — database và mật khẩu giữ nguyên. Xong thì **revoke API token**.
 

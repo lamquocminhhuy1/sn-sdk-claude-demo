@@ -2,7 +2,7 @@
 # One-shot CodeVault deploy. Run INSIDE a PythonAnywhere Bash console:
 #
 #   export PA_TOKEN=<your API token>
-#   git clone https://github.com/lamquocminhhuy1/sn-sdk-claude-demo.git
+#   git clone -b claude/django-code-screenshot-storage-d9xdr8 https://github.com/lamquocminhhuy1/sn-sdk-claude-demo.git
 #   bash sn-sdk-claude-demo/codevault/deploy_on_pythonanywhere.sh
 #
 # Re-running is safe: it upgrades code, keeps the database and admin password.
