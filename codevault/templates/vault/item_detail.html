@@ -2,6 +2,8 @@
 
 {% block title %}{{ item.title }} · CodeVault{% endblock %}
 
+{% block extra_head %}{% if item.has_text %}{% include "vault/_codemirror_assets.html" %}{% endif %}{% endblock %}
+
 {% block content %}
 <div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> / <strong>{{ item.title|truncatechars:40 }}</strong></div>
 
@@ -74,9 +76,10 @@
 {% endif %}
 
 {% if item.has_text %}
-  <div class="codeblock">
+  <div class="cm-viewer" data-code-viewer data-language="{% if item.kind == 'xml' %}xml{% else %}{{ item.language }}{% endif %}">
     <button class="copy-btn" data-copy-target="item-content">Copy</button>
-    <pre id="item-content">{{ item.content }}</pre>
+    <textarea id="item-content" readonly style="display:none">{{ item.content }}</textarea>
+    <noscript><pre class="codeblock">{{ item.content }}</pre></noscript>
   </div>
 {% endif %}
 

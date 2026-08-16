@@ -26,10 +26,8 @@ IGNORED_IDENTIFIERS = frozenset(
 )
 
 
-def guess_identifier(item):
-    """Best-effort API name for an item, used for dependency matching."""
-    if item.identifier:
-        return item.identifier.strip()
+def guess_identifier_from_content(item):
+    """Detect the API name from the code/title, ignoring any stored value."""
     if item.has_text:
         match = CLASS_CREATE_RE.search(item.content)
         if match:
@@ -43,12 +41,23 @@ def guess_identifier(item):
     return ""
 
 
+def guess_identifier(item):
+    """Best-effort API name for an item, used for dependency matching."""
+    if item.identifier:
+        return item.identifier.strip()
+    return guess_identifier_from_content(item)
+
+
 def fill_identifier(item):
-    """Persist the auto-detected identifier so the user can see and edit it."""
-    if not item.identifier and item.kind != Item.Kind.IMAGE:
-        guess = guess_identifier(item)
-        if guess:
-            item.identifier = guess
+    """Keep the identifier in sync with the code.
+
+    Manual identifiers are left untouched. Auto identifiers are recomputed on
+    every save so renaming a class in the code updates the identifier too.
+    """
+    if item.identifier_is_manual and item.identifier.strip():
+        return item
+    if item.kind != Item.Kind.IMAGE:
+        item.identifier = guess_identifier_from_content(item)
     return item
 
 

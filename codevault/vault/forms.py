@@ -28,6 +28,7 @@ class ItemForm(forms.ModelForm):
             "script_type",
             "title",
             "identifier",
+            "identifier_is_manual",
             "related_to",
             "language",
             "content",
@@ -54,6 +55,9 @@ class ItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.project = kwargs.pop("project", None)
         super().__init__(*args, **kwargs)
+        # ServiceNow context: default new code items to JavaScript.
+        if not self.instance.pk and not self.initial.get("language"):
+            self.initial["language"] = "javascript"
         # Screenshots attach to a script in the same project.
         scripts = Item.objects.none()
         if self.project:
@@ -68,6 +72,9 @@ class ItemForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        # Unchecked manual box means auto-detect: discard any typed identifier.
+        if not cleaned.get("identifier_is_manual"):
+            cleaned["identifier"] = ""
         kind = cleaned.get("kind")
         content = (cleaned.get("content") or "").strip()
         upload = cleaned.get("upload")

@@ -2,6 +2,8 @@
 
 {% block title %}{% if is_edit %}Edit{% else %}New item{% endif %} · CodeVault{% endblock %}
 
+{% block extra_head %}{% include "vault/_codemirror_assets.html" %}{% endblock %}
+
 {% block content %}
 <div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> / <strong>{% if is_edit %}Edit{% else %}New item{% endif %}</strong></div>
 
@@ -9,83 +11,98 @@
   <h1>{% if is_edit %}Edit: {{ item.title }}{% else %}New item in {{ project.name }}{% endif %}</h1>
 </div>
 
-<div class="panel">
-  <form class="item-form" method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
+<form class="item-form" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
 
-    {{ form.kind.errors }}
-    <p>
-      <label for="id_kind">Type</label>
-      {{ form.kind }}
-    </p>
+  <div class="segmented" id="kind-switch" data-initial="{{ form.kind.value|default:'code' }}">
+    <button type="button" data-kind="code">&lt;/&gt; Source code</button>
+    <button type="button" data-kind="image">&#128247; Screenshot</button>
+    <button type="button" data-kind="xml">&#128196; XML file</button>
+  </div>
+  <div style="display:none">{{ form.kind }}</div>
 
-    {{ form.script_type.errors }}
-    <p>
-      <label for="id_script_type">Script type</label>
-      {{ form.script_type }}
-      <span class="helptext">What kind of ServiceNow artifact this is (used in the dependency tree).</span>
-    </p>
+  <div class="form-grid">
+    <div class="form-main">
+      {{ form.title.errors }}
+      <div class="field">
+        <label for="id_title">Title</label>
+        {{ form.title }}
+      </div>
 
-    {{ form.title.errors }}
-    <p>
-      <label for="id_title">Title</label>
-      {{ form.title }}
-    </p>
+      <div id="dropzone" class="dropzone">
+        <div class="dz-label">
+          <strong>Paste a screenshot</strong> (Ctrl+V / Cmd+V) or drag &amp; drop an image here
+        </div>
+      </div>
 
-    {{ form.identifier.errors }}
-    <p>
-      <label for="id_identifier">Identifier</label>
-      {{ form.identifier }}
-      <span class="helptext">{{ form.identifier.help_text }}</span>
-    </p>
+      {{ form.content.errors }}
+      <div class="field" id="content-field">
+        <div class="editor-card">
+          <div class="editor-toolbar">
+            <span id="language-row">{{ form.language }}</span>
+            <span class="kbd-hint">
+              <span><kbd>Ctrl</kbd>+<kbd>/</kbd> comment</span>
+              <span><kbd>Ctrl</kbd>+<kbd>V</kbd> paste code</span>
+            </span>
+          </div>
+          {{ form.content }}
+        </div>
+      </div>
 
-    {{ form.related_to.errors }}
-    <p>
-      <label for="id_related_to">Attach to script</label>
-      {{ form.related_to }}
-      <span class="helptext">{{ form.related_to.help_text }}</span>
-    </p>
+      {{ form.note.errors }}
+      <div class="field">
+        <label for="id_note">Note</label>
+        {{ form.note }}
+        <span class="helptext">Optional: context or the question you want to ask Claude.</span>
+      </div>
 
-    <div id="dropzone" class="dropzone">
-      <div class="dz-label">
-        Paste a screenshot here (Ctrl+V / Cmd+V) or drag &amp; drop an image
+      <div class="form-actions">
+        <button class="btn" type="submit">Save</button>
+        {% if not is_edit %}
+          <button class="btn secondary" type="submit" name="save_and_add" value="1">Save &amp; add another</button>
+        {% endif %}
+        <a class="btn secondary" href="{% if is_edit %}{{ item.get_absolute_url }}{% else %}{{ project.get_absolute_url }}{% endif %}">Cancel</a>
       </div>
     </div>
 
-    {{ form.language.errors }}
-    <p>
-      <label for="id_language">Language</label>
-      {{ form.language }}
-    </p>
+    <aside class="form-side">
+      <p class="side-title">Details</p>
 
-    {{ form.content.errors }}
-    <p>
-      <label for="id_content">Content</label>
-      {{ form.content }}
-    </p>
+      {{ form.script_type.errors }}
+      <div class="field" id="script-type-field">
+        <label for="id_script_type">Script type</label>
+        {{ form.script_type }}
+      </div>
 
-    {{ form.upload.errors }}
-    <p>
-      <label for="id_upload">File</label>
-      {{ form.upload }}
-      {% if is_edit and item.upload %}
-        <span class="helptext">Current file: {{ item.filename }} (choosing a new file replaces it)</span>
-      {% endif %}
-    </p>
+      {{ form.related_to.errors }}
+      <div class="field" id="related-field">
+        <label for="id_related_to">Attach to script</label>
+        {{ form.related_to }}
+        <span class="helptext">Which script in this project this screenshot belongs to.</span>
+      </div>
 
-    {{ form.note.errors }}
-    <p>
-      <label for="id_note">Note</label>
-      {{ form.note }}
-      <span class="helptext">Optional: context or the question you want to ask Claude.</span>
-    </p>
+      {{ form.upload.errors }}
+      <div class="field" id="upload-field">
+        <label for="id_upload">File</label>
+        {{ form.upload }}
+        {% if is_edit and item.upload %}
+          <span class="helptext">Current: {{ item.filename }} (new file replaces it)</span>
+        {% endif %}
+      </div>
 
-    <button class="btn" type="submit">Save</button>
-    {% if not is_edit %}
-      <button class="btn secondary" type="submit" name="save_and_add" value="1">Save &amp; add another</button>
-    {% endif %}
-    <a class="btn secondary" href="{% if is_edit %}{{ item.get_absolute_url }}{% else %}{{ project.get_absolute_url }}{% endif %}">Cancel</a>
-  </form>
-</div>
+      <div id="identifier-area">
+        {{ form.identifier.errors }}
+        <div class="check-row">
+          {{ form.identifier_is_manual }}
+          <label for="id_identifier_is_manual">Set identifier manually</label>
+        </div>
+        <div class="subfield" id="identifier-field">
+          {{ form.identifier }}
+          <span class="helptext">API name other scripts use to call this one (e.g. <code>CalcUtils</code>). Leave the box unchecked to auto-detect from the code.</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</form>
 {% endblock %}

@@ -113,6 +113,72 @@ class ItemTests(BaseTestCase):
         item = Item.objects.get(title="My Utils Script Include")
         self.assertEqual(item.identifier, "CalcUtils")
 
+    def test_manual_identifier_is_kept(self):
+        self.login()
+        self.client.post(
+            reverse("item_create", args=[self.project.slug]),
+            {
+                "kind": "code", "script_type": "script_include",
+                "title": "Custom named", "identifier": "MySpecialName",
+                "identifier_is_manual": "on", "language": "javascript",
+                "content": "var CalcUtils = Class.create();",
+            },
+        )
+        item = Item.objects.get(title="Custom named")
+        self.assertEqual(item.identifier, "MySpecialName")
+        self.assertTrue(item.identifier_is_manual)
+
+    def test_typed_identifier_discarded_when_manual_unchecked(self):
+        self.login()
+        self.client.post(
+            reverse("item_create", args=[self.project.slug]),
+            {
+                "kind": "code", "script_type": "script_include",
+                "title": "Auto detect wins", "identifier": "TypedButNotManual",
+                "language": "javascript",
+                "content": "var CalcUtils = Class.create();",
+            },
+        )
+        item = Item.objects.get(title="Auto detect wins")
+        self.assertEqual(item.identifier, "CalcUtils")
+        self.assertFalse(item.identifier_is_manual)
+
+    def test_auto_identifier_recomputed_on_edit(self):
+        self.login()
+        item = Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            title="SI", content="var OldName = Class.create();",
+            identifier="OldName",
+        )
+        self.client.post(
+            reverse("item_edit", args=[item.pk]),
+            {
+                "kind": "code", "script_type": "script_include",
+                "title": "SI", "identifier": "OldName",
+                "language": "javascript",
+                "content": "var NewName = Class.create();",
+            },
+        )
+        item.refresh_from_db()
+        self.assertEqual(item.identifier, "NewName")
+
+    def test_filter_by_script_type(self):
+        self.login()
+        Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            title="The BR", content="var a;", script_type="business_rule",
+        )
+        Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            title="The SI", content="var b;", script_type="script_include",
+        )
+        response = self.client.get(
+            reverse("project_detail", args=[self.project.slug]),
+            {"stype": "business_rule"},
+        )
+        self.assertContains(response, "The BR")
+        self.assertNotContains(response, "The SI")
+
     def test_raw_view(self):
         self.login()
         item = Item.objects.create(

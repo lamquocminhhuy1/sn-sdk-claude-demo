@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}CodeVault{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
   <header class="topbar">
@@ -32,5 +33,6 @@
     {% block content %}{% endblock %}
   </main>
   <script src="{% static 'js/app.js' %}"></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

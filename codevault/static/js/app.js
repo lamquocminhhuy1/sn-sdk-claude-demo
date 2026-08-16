@@ -1,4 +1,4 @@
-/* CodeVault front-end helpers (plain ES5, no dependencies). */
+/* CodeVault front-end (plain ES5; CodeMirror is self-hosted, loaded on pages that need it). */
 (function () {
   "use strict";
 
@@ -50,10 +50,114 @@
         btn.addEventListener("click", function () {
           var target = document.getElementById(btn.getAttribute("data-copy-target"));
           if (target) {
-            copyText(target.textContent, btn);
+            copyText(target.value !== undefined ? target.value : target.textContent, btn);
           }
         });
       })(buttons[i]);
+    }
+  }
+
+  /* ---- CodeMirror ---------------------------------------------------- */
+
+  var MODE_MAP = {
+    javascript: "text/javascript",
+    python: "text/x-python",
+    java: "text/x-java",
+    csharp: "text/x-csharp",
+    sql: "text/x-sql",
+    html: "text/html",
+    css: "text/css",
+    xml: "application/xml",
+    json: "application/json",
+    shell: "text/x-sh",
+    powershell: "application/x-powershell",
+    text: null,
+    other: null
+  };
+
+  var editor = null;
+
+  function currentMode() {
+    var kindSelect = document.getElementById("id_kind");
+    if (kindSelect && kindSelect.value === "xml") {
+      return MODE_MAP.xml;
+    }
+    var languageSelect = document.getElementById("id_language");
+    if (languageSelect) {
+      return MODE_MAP[languageSelect.value] || null;
+    }
+    return null;
+  }
+
+  function initEditor() {
+    var area = document.getElementById("id_content");
+    if (!area || typeof CodeMirror === "undefined") {
+      return;
+    }
+    editor = CodeMirror.fromTextArea(area, {
+      mode: currentMode(),
+      theme: "material-darker",
+      lineNumbers: true,
+      lineWrapping: false,
+      indentUnit: 4,
+      tabSize: 4,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      styleActiveLine: true,
+      viewportMargin: Infinity,
+      extraKeys: {
+        "Ctrl-/": "toggleComment",
+        "Cmd-/": "toggleComment",
+        "Tab": function (cm) {
+          if (cm.somethingSelected()) {
+            cm.indentSelection("add");
+          } else {
+            cm.replaceSelection("    ", "end");
+          }
+        }
+      }
+    });
+    editor.on("change", function () { editor.save(); });
+
+    var languageSelect = document.getElementById("id_language");
+    if (languageSelect) {
+      languageSelect.addEventListener("change", function () {
+        editor.setOption("mode", currentMode());
+      });
+    }
+  }
+
+  function initViewers() {
+    var viewers = document.querySelectorAll("[data-code-viewer]");
+    var i;
+    if (typeof CodeMirror === "undefined") {
+      // No JS highlighting available: fall back to a plain <pre>.
+      for (i = 0; i < viewers.length; i++) {
+        var src = viewers[i].querySelector("textarea");
+        if (src) {
+          var pre = document.createElement("pre");
+          pre.className = "codeblock";
+          pre.textContent = src.value;
+          viewers[i].appendChild(pre);
+        }
+      }
+      return;
+    }
+    for (i = 0; i < viewers.length; i++) {
+      (function (holder) {
+        var src = holder.querySelector("textarea");
+        if (!src) { return; }
+        var language = holder.getAttribute("data-language") || "text";
+        var view = CodeMirror(function (el) { holder.appendChild(el); }, {
+          value: src.value,
+          mode: MODE_MAP[language] || null,
+          theme: "material-darker",
+          lineNumbers: true,
+          readOnly: true,
+          viewportMargin: Infinity
+        });
+        view.setSize(null, "auto");
+      })(viewers[i]);
     }
   }
 
@@ -110,7 +214,7 @@
     } else {
       var label = zone.querySelector(".dz-label");
       if (label) {
-        label.textContent = "Paste not supported in this browser - use the file picker below.";
+        label.textContent = "Paste not supported in this browser - use the file picker instead.";
       }
     }
   }
@@ -123,6 +227,10 @@
     }
 
     document.addEventListener("paste", function (e) {
+      var kindSelect = document.getElementById("id_kind");
+      if (kindSelect && kindSelect.value !== "image") {
+        return; // let code paste go into the editor
+      }
       var items = e.clipboardData && e.clipboardData.items;
       if (!items) {
         return;
@@ -160,52 +268,74 @@
     });
   }
 
-  /* ---- Show/hide form fields depending on item kind -------------------- */
+  /* ---- Item form: segmented type switch + conditional fields ----------- */
 
-  function initKindToggle() {
+  function show(el, on) {
+    if (el) { el.style.display = on ? "" : "none"; }
+  }
+
+  function applyKind(kind) {
+    var zone = document.getElementById("dropzone");
+    show(zone, kind === "image");
+    show(document.getElementById("content-field"), kind !== "image");
+    show(document.getElementById("language-row"), kind === "code");
+    show(document.getElementById("script-type-field"), kind !== "image");
+    show(document.getElementById("identifier-area"), kind !== "image");
+    show(document.getElementById("related-field"), kind === "image");
+    show(document.getElementById("upload-field"), kind !== "code");
+
+    var buttons = document.querySelectorAll("#kind-switch button");
+    var i;
+    for (i = 0; i < buttons.length; i++) {
+      buttons[i].className = buttons[i].getAttribute("data-kind") === kind ? "active" : "";
+    }
+    if (editor) {
+      editor.setOption("mode", currentMode());
+      editor.refresh();
+    }
+  }
+
+  function initKindSwitch() {
+    var wrap = document.getElementById("kind-switch");
     var kindSelect = document.getElementById("id_kind");
-    if (!kindSelect) {
+    if (!wrap || !kindSelect) {
       return;
     }
-
-    function fieldRow(id) {
-      var el = document.getElementById(id);
-      if (!el) {
-        return null;
-      }
-      var node = el;
-      while (node && node.tagName !== "P" && node !== document.body) {
-        node = node.parentNode;
-      }
-      return node === document.body ? null : node;
+    var buttons = wrap.querySelectorAll("button");
+    var i;
+    for (i = 0; i < buttons.length; i++) {
+      (function (btn) {
+        btn.addEventListener("click", function () {
+          kindSelect.value = btn.getAttribute("data-kind");
+          applyKind(kindSelect.value);
+        });
+      })(buttons[i]);
     }
+    if (!kindSelect.value) {
+      kindSelect.value = wrap.getAttribute("data-initial") || "code";
+    }
+    applyKind(kindSelect.value);
+  }
 
+  function initIdentifierToggle() {
+    var checkbox = document.getElementById("id_identifier_is_manual");
+    var field = document.getElementById("identifier-field");
+    if (!checkbox || !field) {
+      return;
+    }
     function apply() {
-      var kind = kindSelect.value;
-      var zone = document.getElementById("dropzone");
-      var contentRow = fieldRow("id_content");
-      var languageRow = fieldRow("id_language");
-      var uploadRow = fieldRow("id_upload");
-      var scriptTypeRow = fieldRow("id_script_type");
-      var identifierRow = fieldRow("id_identifier");
-      var relatedRow = fieldRow("id_related_to");
-
-      if (zone) { zone.style.display = kind === "image" ? "" : "none"; }
-      if (contentRow) { contentRow.style.display = kind === "image" ? "none" : ""; }
-      if (languageRow) { languageRow.style.display = kind === "code" ? "" : "none"; }
-      if (uploadRow) { uploadRow.style.display = kind === "code" ? "none" : ""; }
-      if (scriptTypeRow) { scriptTypeRow.style.display = kind === "image" ? "none" : ""; }
-      if (identifierRow) { identifierRow.style.display = kind === "image" ? "none" : ""; }
-      if (relatedRow) { relatedRow.style.display = kind === "image" ? "" : "none"; }
+      show(field, checkbox.checked);
     }
-
-    kindSelect.addEventListener("change", apply);
+    checkbox.addEventListener("change", apply);
     apply();
   }
 
   document.addEventListener("DOMContentLoaded", function () {
     initCopyButtons();
+    initEditor();
+    initViewers();
     initDropzone();
-    initKindToggle();
+    initKindSwitch();
+    initIdentifierToggle();
   });
 })();

@@ -111,6 +111,10 @@ class Item(models.Model):
             "dependency detection."
         ),
     )
+    identifier_is_manual = models.BooleanField(
+        default=False,
+        help_text="When set, the identifier was typed by the user and is never overwritten by auto-detection.",
+    )
     related_to = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,

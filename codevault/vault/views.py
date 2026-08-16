@@ -91,6 +91,10 @@ def project_detail(request, slug):
     if kind in Item.Kind.values:
         items = items.filter(kind=kind)
 
+    stype = request.GET.get("stype", "")
+    if stype in Item.ScriptType.values:
+        items = items.filter(script_type=stype)
+
     query = request.GET.get("q", "").strip()
     if query:
         items = items.filter(
@@ -110,8 +114,10 @@ def project_detail(request, slug):
             "project": project,
             "page": page,
             "kind": kind,
+            "stype": stype,
             "query": query,
             "kinds": Item.Kind.choices,
+            "script_types": Item.ScriptType.choices,
         },
     )
 
