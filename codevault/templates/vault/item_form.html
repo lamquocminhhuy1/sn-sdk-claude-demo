@@ -1,26 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}{% if is_edit %}Edit{% else %}New item{% endif %} · CodeVault{% endblock %}
+{% block title %}{% if is_edit %}Edit item{% else %}New item{% endif %} · CodeVault{% endblock %}
 
 {% block extra_head %}{% include "vault/_codemirror_assets.html" %}{% endblock %}
 
 {% block content %}
-<div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> / <strong>{% if is_edit %}Edit{% else %}New item{% endif %}</strong></div>
-
-<div class="page-head">
-  <h1>{% if is_edit %}Edit: {{ item.title }}{% else %}New item in {{ project.name }}{% endif %}</h1>
+<div class="breadcrumb">
+  <a href="{% url 'project_list' %}">Projects</a> <span class="sep">&rsaquo;</span>
+  <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> <span class="sep">&rsaquo;</span>
+  <strong>{% if is_edit %}Edit item{% else %}New item{% endif %}</strong>
 </div>
 
 <form class="item-form" method="post" enctype="multipart/form-data">
   {% csrf_token %}
-  {{ form.non_field_errors }}
 
-  <div class="segmented" id="kind-switch" data-initial="{{ form.kind.value|default:'code' }}">
-    <button type="button" data-kind="code">&lt;/&gt; Source code</button>
-    <button type="button" data-kind="image">&#128247; Screenshot</button>
-    <button type="button" data-kind="xml">&#128196; XML file</button>
+  <div class="page-head">
+    <div>
+      <h1>{% if is_edit %}Edit Item{% else %}New Item{% endif %}</h1>
+      <p class="page-sub">Manage content and metadata in {{ project.name }}.</p>
+    </div>
+    <div class="segmented" id="kind-switch" data-initial="{{ form.kind.value|default:'code' }}">
+      <button type="button" data-kind="code">Source code</button>
+      <button type="button" data-kind="image">Screenshot</button>
+      <button type="button" data-kind="xml">XML</button>
+    </div>
   </div>
   <div style="display:none">{{ form.kind }}</div>
+
+  {{ form.non_field_errors }}
 
   <div class="form-grid">
     <div class="form-main">
@@ -30,20 +37,15 @@
         {{ form.title }}
       </div>
 
-      <div id="dropzone" class="dropzone">
-        <div class="dz-label">
-          <strong>Paste a screenshot</strong> (Ctrl+V / Cmd+V) or drag &amp; drop an image here
-        </div>
-      </div>
-
       {{ form.content.errors }}
       <div class="field" id="content-field">
+        <label for="id_content">Payload (CodeMirror)</label>
         <div class="editor-card">
           <div class="editor-toolbar">
             <span id="language-row">{{ form.language }}</span>
             <span class="kbd-hint">
               <span><kbd>Ctrl</kbd>+<kbd>/</kbd> comment</span>
-              <span><kbd>Ctrl</kbd>+<kbd>V</kbd> paste code</span>
+              <span><kbd>Ctrl</kbd>+<kbd>V</kbd> paste</span>
             </span>
           </div>
           {{ form.content }}
@@ -52,54 +54,63 @@
 
       {{ form.note.errors }}
       <div class="field">
-        <label for="id_note">Note</label>
+        <label for="id_note">Internal Notes</label>
         {{ form.note }}
         <span class="helptext">Optional: context or the question you want to ask Claude.</span>
-      </div>
-
-      <div class="form-actions">
-        <button class="btn" type="submit">Save</button>
-        {% if not is_edit %}
-          <button class="btn secondary" type="submit" name="save_and_add" value="1">Save &amp; add another</button>
-        {% endif %}
-        <a class="btn secondary" href="{% if is_edit %}{{ item.get_absolute_url }}{% else %}{{ project.get_absolute_url }}{% endif %}">Cancel</a>
       </div>
     </div>
 
     <aside class="form-side">
-      <p class="side-title">Details</p>
+      <div class="card-box">
+        <div class="card-h">Metadata</div>
+        <div class="card-body">
+          {{ form.script_type.errors }}
+          <div class="field" id="script-type-field">
+            <label for="id_script_type">Script Type</label>
+            {{ form.script_type }}
+          </div>
 
-      {{ form.script_type.errors }}
-      <div class="field" id="script-type-field">
-        <label for="id_script_type">Script type</label>
-        {{ form.script_type }}
-      </div>
+          <div id="identifier-area">
+            {{ form.identifier.errors }}
+            <div class="check-row">
+              {{ form.identifier_is_manual }}
+              <label for="id_identifier_is_manual">Set identifier manually</label>
+            </div>
+            <div class="subfield" id="identifier-field">
+              {{ form.identifier }}
+              <span class="helptext">API name other scripts use to call this one. Unchecked = auto-detect from the code.</span>
+            </div>
+          </div>
 
-      {{ form.related_to.errors }}
-      <div class="field" id="related-field">
-        <label for="id_related_to">Attach to script</label>
-        {{ form.related_to }}
-        <span class="helptext">Which script in this project this screenshot belongs to.</span>
-      </div>
+          {{ form.related_to.errors }}
+          <div class="field" id="related-field">
+            <label for="id_related_to">Attach to Script <span class="helptext" style="display:inline">(screenshot context)</span></label>
+            {{ form.related_to }}
+          </div>
 
-      {{ form.upload.errors }}
-      <div class="field" id="upload-field">
-        <label for="id_upload">File</label>
-        {{ form.upload }}
-        {% if is_edit and item.upload %}
-          <span class="helptext">Current: {{ item.filename }} (new file replaces it)</span>
-        {% endif %}
-      </div>
+          <div id="dropzone" class="dropzone">
+            <div class="dz-label">
+              <strong>Drag and drop file here</strong>
+              paste a screenshot with Ctrl+V / Cmd+V
+            </div>
+            <div class="dz-sub">Supports .xml, .png, .jpg</div>
+          </div>
 
-      <div id="identifier-area">
-        {{ form.identifier.errors }}
-        <div class="check-row">
-          {{ form.identifier_is_manual }}
-          <label for="id_identifier_is_manual">Set identifier manually</label>
-        </div>
-        <div class="subfield" id="identifier-field">
-          {{ form.identifier }}
-          <span class="helptext">API name other scripts use to call this one (e.g. <code>CalcUtils</code>). Leave the box unchecked to auto-detect from the code.</span>
+          {{ form.upload.errors }}
+          <div class="field" id="upload-field">
+            {{ form.upload }}
+            {% if is_edit and item.upload %}
+              <span class="helptext">Current: {{ item.filename }} (new file replaces it)</span>
+            {% endif %}
+          </div>
+
+          <div class="side-actions">
+            <a class="btn secondary" href="{% if is_edit %}{{ item.get_absolute_url }}{% else %}{{ project.get_absolute_url }}{% endif %}">Cancel</a>
+            <button class="btn" type="submit">{% if is_edit %}Save Changes{% else %}Save{% endif %}</button>
+          </div>
+          {% if not is_edit %}
+            <button class="btn secondary" type="submit" name="save_and_add" value="1" style="margin-top:10px;width:100%;justify-content:center">Save &amp; add another</button>
+          {% endif %}
         </div>
       </div>
     </aside>

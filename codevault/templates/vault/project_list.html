@@ -4,35 +4,39 @@
 
 {% block content %}
 <div class="page-head">
-  <h1>Projects</h1>
-  <a class="btn" href="{% url 'project_create' %}">+ New project</a>
-</div>
-
-<div class="filters">
-  <form method="get">
+  <form method="get" class="searchbox" style="flex:1;max-width:480px">
     <input type="text" name="q" value="{{ query }}" placeholder="Find a project...">
-    <button class="btn secondary small" type="submit">Search</button>
   </form>
 </div>
 
 {% if projects %}
-  <div class="repo-list">
-    {% for project in projects %}
-      <div class="repo-row">
-        <div class="repo-main">
-          <h3><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></h3>
-          {% if project.description %}<p>{{ project.description }}</p>{% endif %}
-          <div class="meta">
-            {{ project.script_count }} script{{ project.script_count|pluralize }} ·
-            {{ project.image_count }} screenshot{{ project.image_count|pluralize }} ·
-            updated {{ project.updated_at|date:"Y-m-d H:i" }}
+  <div class="card-box">
+    <div class="table-head">
+      <span style="flex:1">Project</span>
+      <span style="width:170px">Stats</span>
+      <span style="width:170px;text-align:right">Last Updated</span>
+    </div>
+    <div class="repo-list">
+      {% for project in projects %}
+        <div class="repo-row">
+          <div class="repo-main">
+            <h3>
+              <a href="{{ project.get_absolute_url }}">{{ project.name }}</a>
+              <span class="chip">{{ project.slug }}</span>
+            </h3>
+            {% if project.description %}<p>{{ project.description }}</p>{% endif %}
+          </div>
+          <div class="repo-stats" style="width:170px">
+            <span class="stat" title="Scripts"><span class="ico">&lt;&gt;</span> {{ project.script_count }}</span>
+            <span class="stat" title="Screenshots"><span class="ico">&#9634;</span> {{ project.image_count }}</span>
+          </div>
+          <div class="repo-updated">Updated {{ project.updated_at|timesince }} ago</div>
+          <div class="repo-actions">
+            <a class="btn secondary small" href="{% url 'project_dependencies' project.slug %}">Dependencies</a>
           </div>
         </div>
-        <div class="repo-actions">
-          <a class="btn secondary small" href="{% url 'project_dependencies' project.slug %}">Dependencies</a>
-        </div>
-      </div>
-    {% endfor %}
+      {% endfor %}
+    </div>
   </div>
 {% else %}
   <div class="empty">

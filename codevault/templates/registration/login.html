@@ -4,7 +4,10 @@
 
 {% block content %}
 <div class="login-wrap panel">
-  <h1>CodeVault</h1>
+  <div class="login-brand">
+    <span class="logo" style="width:38px;height:38px;border-radius:8px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">CV</span>
+    <h1>CodeVault</h1>
+  </div>
   {% if form.errors %}
     <ul class="errorlist"><li>Wrong username or password.</li></ul>
   {% endif %}

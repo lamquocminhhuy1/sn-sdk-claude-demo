@@ -186,8 +186,8 @@
   function updateThemeButton() {
     var icon = document.getElementById("theme-icon");
     var label = document.getElementById("theme-label");
-    if (icon) { icon.innerHTML = isLight() ? "&#9788;" : "&#9789;"; }
-    if (label) { label.textContent = isLight() ? "Light mode" : "Dark mode"; }
+    if (icon) { icon.innerHTML = isLight() ? "&#9728;" : "&#9790;"; }
+    if (label) { label.textContent = isLight() ? "Light Mode" : "Dark Mode"; }
   }
 
   function initThemeToggle() {
@@ -301,8 +301,17 @@
     });
     zone.addEventListener("drop", function (e) {
       e.preventDefault();
-      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
-        acceptImage(zone, input, e.dataTransfer.files[0]);
+      if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) {
+        return;
+      }
+      var file = e.dataTransfer.files[0];
+      if (file.type.indexOf("image/") === 0) {
+        acceptImage(zone, input, file);
+      } else if (setFileInput(input, file)) {
+        // Non-image file (e.g. .xml): hand it to the file input directly.
+        zone.className = "dropzone armed";
+        var label = zone.querySelector(".dz-label");
+        if (label) { label.textContent = "File ready: " + file.name; }
       }
     });
 
@@ -321,7 +330,7 @@
 
   function applyKind(kind) {
     var zone = document.getElementById("dropzone");
-    show(zone, kind === "image");
+    show(zone, kind !== "code");
     show(document.getElementById("content-field"), kind !== "image");
     show(document.getElementById("language-row"), kind === "code");
     show(document.getElementById("script-type-field"), kind !== "image");

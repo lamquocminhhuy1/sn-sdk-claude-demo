@@ -5,100 +5,139 @@
 {% block extra_head %}{% if item.has_text %}{% include "vault/_codemirror_assets.html" %}{% endif %}{% endblock %}
 
 {% block content %}
-<div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> / <strong>{{ item.title|truncatechars:40 }}</strong></div>
+<div class="breadcrumb">
+  <a href="{% url 'project_list' %}">Projects</a> <span class="sep">&rsaquo;</span>
+  <a href="{{ project.get_absolute_url }}">{{ project.name }}</a> <span class="sep">&rsaquo;</span>
+  <strong>{{ item.title|truncatechars:40 }}</strong>
+</div>
 
 <div class="detail-head">
-  <div>
-    <h1>{{ item.title }}</h1>
-    <div class="detail-meta">
-      <span class="badge {{ item.script_type }}">{% if item.kind == 'image' %}Screenshot{% elif item.kind == 'xml' and item.script_type == 'other' %}XML{% else %}{{ item.get_script_type_display }}{% endif %}</span>
-      {% if item.identifier %} <code>{{ item.identifier }}</code>{% endif %}
-      · {{ item.created_at|date:"Y-m-d H:i" }}
-      {% if item.kind == 'code' %} · {{ item.get_language_display }}{% endif %}
-      {% if item.upload %} · {{ item.filename }}{% endif %}
-      {% if item.related_to %} · attached to <a href="{{ item.related_to.get_absolute_url }}">{{ item.related_to.title }}</a>{% endif %}
-    </div>
-  </div>
+  <h1>
+    {{ item.title }}
+    <span class="badge {{ item.script_type }}">{% if item.kind == 'image' %}SCREENSHOT{% elif item.kind == 'xml' and item.script_type == 'other' %}XML{% else %}{{ item.get_script_type_display }}{% endif %}</span>
+  </h1>
   <div class="detail-actions">
-    {% if item.has_text %}
-      <button class="btn secondary small copy-btn" data-copy-target="item-content">Copy content</button>
-      <a class="btn secondary small" href="{% url 'item_raw' item.uid %}" target="_blank" rel="noopener">Raw</a>
-    {% endif %}
-    {% if item.upload %}
-      <a class="btn secondary small" href="{% url 'serve_media' item.upload.name %}?download=1">Download file</a>
-    {% endif %}
+    <a class="btn secondary" href="{% url 'item_edit' item.uid %}">&#9998; Edit</a>
     {% if not item.is_image %}
-      <a class="btn secondary small" href="{% url 'item_create' project.slug %}?related_to={{ item.pk }}">+ Screenshot</a>
+      <a class="btn" href="{% url 'item_create' project.slug %}?related_to={{ item.pk }}">+ Screenshot</a>
     {% endif %}
-    <a class="btn secondary small" href="{% url 'item_edit' item.uid %}">Edit</a>
     <a class="btn danger small" href="{% url 'item_delete' item.uid %}">Delete</a>
   </div>
 </div>
 
-{% if depends_on or used_by %}
-  <div class="dep-panel">
-    {% if depends_on %}
-      <div class="dep-col">
-        <h3>Depends on ({{ depends_on|length }})</h3>
-        <ul class="flat-list">
-          {% for dep in depends_on %}
-            <li><span class="badge {{ dep.script_type }}">{{ dep.get_script_type_display }}</span>
-                <a href="{{ dep.get_absolute_url }}">{{ dep.title }}</a>
-                {% if dep.identifier %}<code>{{ dep.identifier }}</code>{% endif %}</li>
-          {% endfor %}
-        </ul>
+<div class="detail-meta">
+  <span class="m"><span class="label-caps">UID</span> <code>{{ item.uid }}</code></span>
+  <span class="m">Updated: {{ item.updated_at|date:"M d, Y H:i" }}</span>
+  {% if item.kind == 'code' %}<span class="m">{{ item.get_language_display }}</span>{% endif %}
+  {% if item.identifier %}<span class="m"><span class="label-caps">API</span> <code>{{ item.identifier }}</code></span>{% endif %}
+  <span class="m"><span class="status-dot"></span> Active</span>
+</div>
+
+<div class="detail-grid">
+  <div class="detail-main">
+    {% if item.is_image and item.upload %}
+      <div class="card-box" style="margin-bottom:20px">
+        <div class="card-h">
+          <span class="h-ico">&#9634;</span> Screenshot
+          <span class="card-h-actions">
+            <a class="copy-btn" href="{% url 'serve_media' item.upload.name %}?download=1">Download</a>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="shot">
+            <a href="{% url 'serve_media' item.upload.name %}" target="_blank" rel="noopener">
+              <img src="{% url 'serve_media' item.upload.name %}" alt="{{ item.title }}">
+            </a>
+          </div>
+        </div>
       </div>
     {% endif %}
-    {% if used_by %}
-      <div class="dep-col">
-        <h3>Used by ({{ used_by|length }})</h3>
-        <ul class="flat-list">
-          {% for dep in used_by %}
-            <li><span class="badge {{ dep.script_type }}">{{ dep.get_script_type_display }}</span>
-                <a href="{{ dep.get_absolute_url }}">{{ dep.title }}</a></li>
-          {% endfor %}
-        </ul>
+
+    {% if item.has_text %}
+      <div class="card-box" style="margin-bottom:20px">
+        <div class="card-h">
+          <span class="h-ico">&#8985;</span> Source Code
+          <span class="card-h-actions">
+            <button class="copy-btn" data-copy-target="item-content">&#10064; Copy</button>
+            <a class="copy-btn" href="{% url 'item_raw' item.uid %}" target="_blank" rel="noopener">{ } Raw</a>
+            {% if item.upload %}
+              <a class="copy-btn" href="{% url 'serve_media' item.upload.name %}?download=1">Download</a>
+            {% endif %}
+          </span>
+        </div>
+        <div class="cm-viewer" data-code-viewer data-language="{% if item.kind == 'xml' %}xml{% else %}{{ item.language }}{% endif %}">
+          <textarea id="item-content" readonly style="display:none">{{ item.content }}</textarea>
+          <noscript><pre class="codeblock">{{ item.content }}</pre></noscript>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if item.note %}
+      <div class="card-box" style="margin-bottom:20px">
+        <div class="card-h"><span class="h-ico">&#9776;</span> Implementation Notes</div>
+        <div class="note-box">{{ item.note }}</div>
       </div>
     {% endif %}
   </div>
-{% endif %}
 
-{% if item.note %}
-  <div class="note-box">{{ item.note }}</div>
-{% endif %}
-
-{% if item.is_image and item.upload %}
-  <div class="shot">
-    <a href="{% url 'serve_media' item.upload.name %}" target="_blank" rel="noopener">
-      <img src="{% url 'serve_media' item.upload.name %}" alt="{{ item.title }}">
-    </a>
-  </div>
-{% endif %}
-
-{% if item.has_text %}
-  <div class="cm-viewer" data-code-viewer data-language="{% if item.kind == 'xml' %}xml{% else %}{{ item.language }}{% endif %}">
-    <button class="copy-btn" data-copy-target="item-content">Copy</button>
-    <textarea id="item-content" readonly style="display:none">{{ item.content }}</textarea>
-    <noscript><pre class="codeblock">{{ item.content }}</pre></noscript>
-  </div>
-{% endif %}
-
-{% if screenshots %}
-  <h2 class="section-title">Screenshots ({{ screenshots|length }})</h2>
-  <div class="grid">
-    {% for shot in screenshots %}
-      <div class="card">
-        <h3><a href="{{ shot.get_absolute_url }}">{{ shot.title }}</a></h3>
-        {% if shot.upload %}
-          <a href="{{ shot.get_absolute_url }}">
-            <img class="thumb" src="{% url 'serve_media' shot.upload.name %}" alt="{{ shot.title }}">
-          </a>
-        {% endif %}
-        <div class="meta">{{ shot.created_at|date:"Y-m-d H:i" }}</div>
+  <aside class="detail-side">
+    {% if not item.is_image %}
+      <div class="card-box">
+        <div class="card-h"><span class="h-ico">&#9741;</span> Relationships</div>
+        <div class="side-sec">
+          <span class="label-caps">Depends On</span>
+          {% if depends_on %}
+            <ul class="flat-list">
+              {% for dep in depends_on %}
+                <li><span class="badge {{ dep.script_type }}">{{ dep.get_script_type_display }}</span>
+                    <a href="{{ dep.get_absolute_url }}">{{ dep.title }}</a></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <span class="helptext">Nothing detected.</span>
+          {% endif %}
+        </div>
+        <div class="side-sec">
+          <span class="label-caps">Used By</span>
+          {% if used_by %}
+            <ul class="flat-list">
+              {% for dep in used_by %}
+                <li><span class="badge {{ dep.script_type }}">{{ dep.get_script_type_display }}</span>
+                    <a href="{{ dep.get_absolute_url }}">{{ dep.title }}</a></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <span class="helptext">Nothing detected.</span>
+          {% endif %}
+        </div>
       </div>
-    {% endfor %}
-  </div>
-{% endif %}
+    {% endif %}
+
+    {% if item.related_to %}
+      <div class="card-box">
+        <div class="card-h"><span class="h-ico">&#128279;</span> Attached To</div>
+        <div class="side-sec">
+          <span class="badge {{ item.related_to.script_type }}">{{ item.related_to.get_script_type_display }}</span>
+          <a href="{{ item.related_to.get_absolute_url }}">{{ item.related_to.title }}</a>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if screenshots %}
+      <div class="card-box">
+        <div class="card-h"><span class="h-ico">&#9634;</span> Attachments ({{ screenshots|length }})</div>
+        <div class="attach-grid">
+          {% for shot in screenshots %}
+            <a href="{{ shot.get_absolute_url }}" title="{{ shot.title }}">
+              {% if shot.upload %}<img src="{% url 'serve_media' shot.upload.name %}" alt="{{ shot.title }}">{% endif %}
+              <span class="attach-title">{{ shot.title }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </aside>
+</div>
 
 <p style="margin-top:20px"><a href="{{ project.get_absolute_url }}">&larr; Back to {{ project.name }}</a></p>
 {% endblock %}

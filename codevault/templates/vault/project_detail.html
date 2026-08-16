@@ -3,67 +3,84 @@
 {% block title %}{{ project.name }} · CodeVault{% endblock %}
 
 {% block content %}
-<div class="breadcrumb"><a href="{% url 'project_list' %}">Projects</a> / <strong>{{ project.name }}</strong></div>
-
 <div class="page-head">
   <div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span class="label-caps" style="background:var(--surface-3);padding:3px 8px;border-radius:var(--r-badge)">Project</span>
+      <span class="chip">{{ project.slug }}</span>
+    </div>
     <h1>{{ project.name }}</h1>
-    {% if project.description %}<p class="subtitle">{{ project.description }}</p>{% endif %}
+    {% if project.description %}<p class="page-sub">{{ project.description }}</p>{% endif %}
   </div>
   <div class="detail-actions">
     <a class="btn" href="{% url 'item_create' project.slug %}">+ New item</a>
-    <a class="btn secondary small" href="{% url 'project_edit' project.slug %}">Edit</a>
+    <a class="btn secondary" href="{% url 'project_edit' project.slug %}">&#9881; Configure</a>
     <a class="btn danger small" href="{% url 'project_delete' project.slug %}">Delete</a>
   </div>
 </div>
 
 <div class="tabs">
   <a class="tab-link active" href="{{ project.get_absolute_url }}">Items</a>
-  <a class="tab-link" href="{% url 'project_dependencies' project.slug %}">Dependency tree</a>
+  <a class="tab-link" href="{% url 'project_dependencies' project.slug %}">Dependency Tree</a>
 </div>
 
-<div class="filters">
-  <a class="tab {% if not kind %}active{% endif %}" href="?q={{ query|urlencode }}&amp;stype={{ stype }}">All</a>
-  {% for value, label in kinds %}
-    <a class="tab {% if kind == value %}active{% endif %}"
-       href="?kind={{ value }}&amp;q={{ query|urlencode }}&amp;stype={{ stype }}">{{ label }}</a>
-  {% endfor %}
+<div class="toolbar">
   <form method="get">
+    <span class="searchbox" style="flex:1;min-width:200px">
+      <input type="text" name="q" value="{{ query }}" placeholder="Filter items by name or identifier...">
+    </span>
     {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
     <select name="stype" onchange="this.form.submit()" title="Filter by script type">
-      <option value="">All script types</option>
+      <option value="">Script Type</option>
       {% for value, label in script_types %}
         <option value="{{ value }}" {% if stype == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
-    <input type="text" name="q" value="{{ query }}" placeholder="Search title, identifier, content...">
     <button class="btn secondary small" type="submit">Search</button>
   </form>
+  <span class="pillbar">
+    <a class="tab {% if not kind %}active{% endif %}" href="?q={{ query|urlencode }}&amp;stype={{ stype }}">All</a>
+    {% for value, label in kinds %}
+      <a class="tab {% if kind == value %}active{% endif %}"
+         href="?kind={{ value }}&amp;q={{ query|urlencode }}&amp;stype={{ stype }}">{{ label }}</a>
+    {% endfor %}
+  </span>
 </div>
 
 {% if page.object_list %}
-  <div class="file-list">
-    {% for item in page.object_list %}
-      <a class="file-row" href="{{ item.get_absolute_url }}">
-        {% if item.is_image and item.upload %}
-          <img class="file-thumb" src="{% url 'serve_media' item.upload.name %}" alt="">
-        {% elif item.kind == 'xml' %}
-          <span class="file-ico xml">&lt;/&gt;</span>
-        {% else %}
-          <span class="file-ico code">{ }</span>
-        {% endif %}
-        <span class="file-name">{{ item.title }}</span>
-        {% if item.identifier %}<code>{{ item.identifier }}</code>{% endif %}
-        {% if item.kind == 'image' %}
-          <span class="badge">Screenshot</span>
-        {% elif item.script_type != 'other' %}
-          <span class="badge {{ item.script_type }}">{{ item.get_script_type_display }}</span>
-        {% elif item.kind == 'xml' %}
-          <span class="badge">XML</span>
-        {% endif %}
-        <span class="file-date">{{ item.updated_at|date:"Y-m-d H:i" }}</span>
-      </a>
-    {% endfor %}
+  <div class="card-box">
+    <div class="table-head">
+      <span style="flex:1">Name</span>
+      <span style="width:160px">Type</span>
+      <span style="width:130px;text-align:right">Last Modified</span>
+    </div>
+    <div class="file-list">
+      {% for item in page.object_list %}
+        <a class="file-row" href="{{ item.get_absolute_url }}">
+          {% if item.is_image and item.upload %}
+            <img class="file-thumb" src="{% url 'serve_media' item.upload.name %}" alt="">
+          {% elif item.kind == 'xml' %}
+            <span class="file-ico xml">&lt;/&gt;</span>
+          {% else %}
+            <span class="file-ico code">{ }</span>
+          {% endif %}
+          <span class="file-name">{{ item.title }}</span>
+          {% if item.identifier %}<code>{{ item.identifier }}</code>{% endif %}
+          <span class="file-type" style="margin-left:auto">
+            {% if item.kind == 'image' %}
+              <span class="badge">SCREENSHOT</span>
+            {% elif item.script_type != 'other' %}
+              <span class="badge {{ item.script_type }}">{{ item.get_script_type_display }}</span>
+            {% elif item.kind == 'xml' %}
+              <span class="badge">XML</span>
+            {% else %}
+              <span class="badge">CODE</span>
+            {% endif %}
+          </span>
+          <span class="file-date">{{ item.updated_at|timesince }} ago</span>
+        </a>
+      {% endfor %}
+    </div>
   </div>
 
   {% if page.has_other_pages %}

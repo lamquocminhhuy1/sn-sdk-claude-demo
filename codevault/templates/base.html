@@ -22,24 +22,42 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <a class="brand" href="{% url 'project_list' %}">Code<span>Vault</span></a>
+      <a class="brand" href="{% url 'project_list' %}">
+        <span class="logo">CV</span>
+        <span>
+          <span class="brand-name">CodeVault</span><br>
+          <span class="brand-sub">Developer Vault</span>
+        </span>
+      </a>
       {% if user.is_authenticated %}
+        <a class="side-cta" href="{% url 'project_create' %}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New Project
+        </a>
         <nav class="side-nav">
           <a class="side-link {% if request.resolver_match.url_name == 'project_list' or request.resolver_match.url_name == 'project_detail' or request.resolver_match.url_name == 'project_dependencies' %}active{% endif %}"
-             href="{% url 'project_list' %}"><span class="side-ico">&#9707;</span> Projects</a>
-          <a class="side-link {% if request.resolver_match.url_name == 'project_create' %}active{% endif %}"
-             href="{% url 'project_create' %}"><span class="side-ico">+</span> New project</a>
-          <a class="side-link" href="{% url 'admin:index' %}"><span class="side-ico">&#9881;</span> Admin</a>
+             href="{% url 'project_list' %}">
+            <span class="side-ico"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></span>
+            Projects
+          </a>
+          <a class="side-link" href="{% url 'admin:index' %}">
+            <span class="side-ico"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z"/></svg></span>
+            Admin Settings
+          </a>
         </nav>
       {% endif %}
       <div class="side-footer">
         <button type="button" id="theme-toggle" class="side-link" title="Switch light / dark theme">
-          <span class="side-ico" id="theme-icon">&#9789;</span> <span id="theme-label">Theme</span>
+          <span class="side-ico" id="theme-icon"><svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></span>
+          <span id="theme-label">Theme Toggle</span>
         </button>
         {% if user.is_authenticated %}
           <form method="post" action="{% url 'logout' %}">
             {% csrf_token %}
-            <button type="submit" class="side-link logout"><span class="side-ico">&#8618;</span> Logout ({{ user.username }})</button>
+            <button type="submit" class="side-link">
+              <span class="side-ico"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></span>
+              Logout ({{ user.username }})
+            </button>
           </form>
         {% endif %}
       </div>
