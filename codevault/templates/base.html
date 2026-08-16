@@ -5,33 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}CodeVault{% endblock %}</title>
+  <script>
+    // Apply the saved theme before the first paint to avoid flashing.
+    (function () {
+      try {
+        var theme = localStorage.getItem("cv-theme");
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+      } catch (err) { /* private mode etc. */ }
+    })();
+  </script>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="{% url 'project_list' %}">Code<span>Vault</span></a>
-    <nav>
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="{% url 'project_list' %}">Code<span>Vault</span></a>
       {% if user.is_authenticated %}
-        <a href="{% url 'project_list' %}">Projects</a>
-        <a href="{% url 'admin:index' %}">Admin</a>
-        <form method="post" action="{% url 'logout' %}">
-          {% csrf_token %}
-          <button type="submit">Logout ({{ user.username }})</button>
-        </form>
+        <nav class="side-nav">
+          <a class="side-link {% if request.resolver_match.url_name == 'project_list' or request.resolver_match.url_name == 'project_detail' or request.resolver_match.url_name == 'project_dependencies' %}active{% endif %}"
+             href="{% url 'project_list' %}"><span class="side-ico">&#9707;</span> Projects</a>
+          <a class="side-link {% if request.resolver_match.url_name == 'project_create' %}active{% endif %}"
+             href="{% url 'project_create' %}"><span class="side-ico">+</span> New project</a>
+          <a class="side-link" href="{% url 'admin:index' %}"><span class="side-ico">&#9881;</span> Admin</a>
+        </nav>
       {% endif %}
-    </nav>
-  </header>
-  <main class="container">
-    {% if messages %}
-      <ul class="messages">
-        {% for message in messages %}
-          <li class="{{ message.tags }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-    {% block content %}{% endblock %}
-  </main>
+      <div class="side-footer">
+        <button type="button" id="theme-toggle" class="side-link" title="Switch light / dark theme">
+          <span class="side-ico" id="theme-icon">&#9789;</span> <span id="theme-label">Theme</span>
+        </button>
+        {% if user.is_authenticated %}
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="side-link logout"><span class="side-ico">&#8618;</span> Logout ({{ user.username }})</button>
+          </form>
+        {% endif %}
+      </div>
+    </aside>
+    <div class="main">
+      <main class="container">
+        {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}
+              <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
   <script src="{% static 'js/app.js' %}"></script>
   {% block scripts %}{% endblock %}
 </body>

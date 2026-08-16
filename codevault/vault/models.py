@@ -1,4 +1,5 @@
 import os
+import uuid
 
 from django.conf import settings
 from django.db import models
@@ -91,6 +92,7 @@ class Item(models.Model):
         ("other", "Other"),
     ]
 
+    uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="items"
     )
@@ -143,7 +145,7 @@ class Item(models.Model):
         return "[{0}] {1}".format(self.get_kind_display(), self.title)
 
     def get_absolute_url(self):
-        return reverse("item_detail", args=[self.pk])
+        return reverse("item_detail", args=[self.uid])
 
     @property
     def filename(self):

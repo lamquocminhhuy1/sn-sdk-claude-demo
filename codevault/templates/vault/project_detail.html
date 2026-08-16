@@ -42,28 +42,27 @@
 </div>
 
 {% if page.object_list %}
-  <div class="grid">
+  <div class="file-list">
     {% for item in page.object_list %}
-      <div class="card">
-        <span class="kind {{ item.kind }}">
-          {% if item.kind == 'code' and item.script_type != 'other' %}{{ item.get_script_type_display }}{% else %}{{ item.get_kind_display }}{% endif %}
-        </span>
-        <h3><a href="{{ item.get_absolute_url }}">{{ item.title }}</a></h3>
+      <a class="file-row" href="{{ item.get_absolute_url }}">
         {% if item.is_image and item.upload %}
-          <a href="{{ item.get_absolute_url }}">
-            <img class="thumb" src="{% url 'serve_media' item.upload.name %}" alt="{{ item.title }}">
-          </a>
-        {% elif item.has_text %}
-          <pre class="preview">{{ item.content|truncatechars:300 }}</pre>
-        {% elif item.upload %}
-          <pre class="preview">{{ item.filename }}</pre>
+          <img class="file-thumb" src="{% url 'serve_media' item.upload.name %}" alt="">
+        {% elif item.kind == 'xml' %}
+          <span class="file-ico xml">&lt;/&gt;</span>
+        {% else %}
+          <span class="file-ico code">{ }</span>
         {% endif %}
-        <div class="meta">
-          {{ item.created_at|date:"Y-m-d H:i" }}
-          {% if item.identifier %} · <code>{{ item.identifier }}</code>{% endif %}
-          {% if item.related_to %} · on {{ item.related_to.title|truncatechars:25 }}{% endif %}
-        </div>
-      </div>
+        <span class="file-name">{{ item.title }}</span>
+        {% if item.identifier %}<code>{{ item.identifier }}</code>{% endif %}
+        {% if item.kind == 'image' %}
+          <span class="badge">Screenshot</span>
+        {% elif item.script_type != 'other' %}
+          <span class="badge {{ item.script_type }}">{{ item.get_script_type_display }}</span>
+        {% elif item.kind == 'xml' %}
+          <span class="badge">XML</span>
+        {% endif %}
+        <span class="file-date">{{ item.updated_at|date:"Y-m-d H:i" }}</span>
+      </a>
     {% endfor %}
   </div>
 

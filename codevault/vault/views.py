@@ -175,8 +175,8 @@ def item_create(request, slug):
 
 
 @login_required
-def item_edit(request, pk):
-    item = get_object_or_404(Item, pk=pk, owner=request.user)
+def item_edit(request, uid):
+    item = get_object_or_404(Item, uid=uid, owner=request.user)
     project = item.project
     if request.method == "POST":
         form = ItemForm(request.POST, request.FILES, instance=item, project=project)
@@ -197,9 +197,9 @@ def item_edit(request, pk):
 
 
 @login_required
-def item_detail(request, pk):
+def item_detail(request, uid):
     item = get_object_or_404(
-        Item.objects.select_related("project", "related_to"), pk=pk, owner=request.user
+        Item.objects.select_related("project", "related_to"), uid=uid, owner=request.user
     )
     return render(
         request,
@@ -215,8 +215,8 @@ def item_detail(request, pk):
 
 
 @login_required
-def item_delete(request, pk):
-    item = get_object_or_404(Item, pk=pk, owner=request.user)
+def item_delete(request, uid):
+    item = get_object_or_404(Item, uid=uid, owner=request.user)
     project = item.project
     if request.method == "POST":
         title = item.title
@@ -228,9 +228,9 @@ def item_delete(request, pk):
 
 
 @login_required
-def item_raw(request, pk):
+def item_raw(request, uid):
     """Plain-text view of the content — handy for select-all + copy."""
-    item = get_object_or_404(Item, pk=pk, owner=request.user)
+    item = get_object_or_404(Item, uid=uid, owner=request.user)
     if not item.content:
         raise Http404("This item has no text content.")
     return HttpResponse(item.content, content_type="text/plain; charset=utf-8")

@@ -151,7 +151,7 @@ class ItemTests(BaseTestCase):
             identifier="OldName",
         )
         self.client.post(
-            reverse("item_edit", args=[item.pk]),
+            reverse("item_edit", args=[item.uid]),
             {
                 "kind": "code", "script_type": "script_include",
                 "title": "SI", "identifier": "OldName",
@@ -185,7 +185,7 @@ class ItemTests(BaseTestCase):
             owner=self.user, project=self.project, kind="xml",
             title="Update set", content="<xml/>",
         )
-        response = self.client.get(reverse("item_raw", args=[item.pk]))
+        response = self.client.get(reverse("item_raw", args=[item.uid]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"<xml/>")
 
@@ -323,5 +323,5 @@ class DependencyTests(BaseTestCase):
         self.make_script("BR", "new CalcUtils().run();")
         rebuild_project_dependencies(self.project)
         self.assertEqual(Dependency.objects.count(), 1)
-        self.client.post(reverse("item_delete", args=[si.pk]))
+        self.client.post(reverse("item_delete", args=[si.uid]))
         self.assertEqual(Dependency.objects.count(), 0)

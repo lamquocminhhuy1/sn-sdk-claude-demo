@@ -76,6 +76,15 @@
   };
 
   var editor = null;
+  var cmInstances = [];
+
+  function isLight() {
+    return document.documentElement.getAttribute("data-theme") === "light";
+  }
+
+  function cmTheme() {
+    return isLight() ? "default" : "material-darker";
+  }
 
   function currentMode() {
     var kindSelect = document.getElementById("id_kind");
@@ -96,7 +105,7 @@
     }
     editor = CodeMirror.fromTextArea(area, {
       mode: currentMode(),
-      theme: "material-darker",
+      theme: cmTheme(),
       lineNumbers: true,
       lineWrapping: false,
       indentUnit: 4,
@@ -118,6 +127,7 @@
       }
     });
     editor.on("change", function () { editor.save(); });
+    cmInstances.push(editor);
 
     var languageSelect = document.getElementById("id_language");
     if (languageSelect) {
@@ -151,14 +161,49 @@
         var view = CodeMirror(function (el) { holder.appendChild(el); }, {
           value: src.value,
           mode: MODE_MAP[language] || null,
-          theme: "material-darker",
+          theme: cmTheme(),
           lineNumbers: true,
           readOnly: true,
           viewportMargin: Infinity
         });
-        view.setSize(null, "auto");
+        cmInstances.push(view);
+
+        // Give the holder a concrete height so the user can drag-resize it
+        // (CSS resize: vertical). The editor fills whatever height it has.
+        var contentHeight = view.getScrollInfo().height + 8;
+        var maxInitial = Math.round(window.innerHeight * 0.62);
+        holder.style.height = Math.max(140, Math.min(contentHeight, maxInitial)) + "px";
+        view.setSize("100%", "100%");
+        if (typeof ResizeObserver !== "undefined") {
+          new ResizeObserver(function () { view.refresh(); }).observe(holder);
+        }
       })(viewers[i]);
     }
+  }
+
+  /* ---- Light / dark theme toggle ------------------------------------- */
+
+  function updateThemeButton() {
+    var icon = document.getElementById("theme-icon");
+    var label = document.getElementById("theme-label");
+    if (icon) { icon.innerHTML = isLight() ? "&#9788;" : "&#9789;"; }
+    if (label) { label.textContent = isLight() ? "Light mode" : "Dark mode"; }
+  }
+
+  function initThemeToggle() {
+    var btn = document.getElementById("theme-toggle");
+    if (!btn) { return; }
+    updateThemeButton();
+    btn.addEventListener("click", function () {
+      var next = isLight() ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("cv-theme", next); } catch (err) { /* ignore */ }
+      var i;
+      for (i = 0; i < cmInstances.length; i++) {
+        cmInstances[i].setOption("theme", cmTheme());
+      }
+      updateThemeButton();
+    });
   }
 
   /* ---- Clipboard-paste / drag-drop screenshot upload ------------------ */
@@ -337,5 +382,6 @@
     initDropzone();
     initKindSwitch();
     initIdentifierToggle();
+    initThemeToggle();
   });
 })();

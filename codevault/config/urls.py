@@ -19,9 +19,9 @@ urlpatterns = [
     path("p/<slug:slug>/delete/", views.project_delete, name="project_delete"),
     path("p/<slug:slug>/deps/", views.project_dependencies, name="project_dependencies"),
     path("p/<slug:slug>/new/", views.item_create, name="item_create"),
-    path("item/<int:pk>/", views.item_detail, name="item_detail"),
-    path("item/<int:pk>/edit/", views.item_edit, name="item_edit"),
-    path("item/<int:pk>/delete/", views.item_delete, name="item_delete"),
-    path("item/<int:pk>/raw/", views.item_raw, name="item_raw"),
+    path("item/<uuid:uid>/", views.item_detail, name="item_detail"),
+    path("item/<uuid:uid>/edit/", views.item_edit, name="item_edit"),
+    path("item/<uuid:uid>/delete/", views.item_delete, name="item_delete"),
+    path("item/<uuid:uid>/raw/", views.item_raw, name="item_raw"),
     path("media/<path:path>", views.serve_media, name="serve_media"),
 ]

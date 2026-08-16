@@ -22,7 +22,7 @@
   <div class="detail-actions">
     {% if item.has_text %}
       <button class="btn secondary small copy-btn" data-copy-target="item-content">Copy content</button>
-      <a class="btn secondary small" href="{% url 'item_raw' item.pk %}" target="_blank" rel="noopener">Raw</a>
+      <a class="btn secondary small" href="{% url 'item_raw' item.uid %}" target="_blank" rel="noopener">Raw</a>
     {% endif %}
     {% if item.upload %}
       <a class="btn secondary small" href="{% url 'serve_media' item.upload.name %}?download=1">Download file</a>
@@ -30,8 +30,8 @@
     {% if not item.is_image %}
       <a class="btn secondary small" href="{% url 'item_create' project.slug %}?related_to={{ item.pk }}">+ Screenshot</a>
     {% endif %}
-    <a class="btn secondary small" href="{% url 'item_edit' item.pk %}">Edit</a>
-    <a class="btn danger small" href="{% url 'item_delete' item.pk %}">Delete</a>
+    <a class="btn secondary small" href="{% url 'item_edit' item.uid %}">Edit</a>
+    <a class="btn danger small" href="{% url 'item_delete' item.uid %}">Delete</a>
   </div>
 </div>
 
