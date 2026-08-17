@@ -62,10 +62,16 @@ def fill_identifier(item):
 
 
 def rebuild_project_dependencies(project):
-    """Rescan every script in the project and rebuild the dependency edges."""
-    items = list(
-        project.items.exclude(kind=Item.Kind.IMAGE).exclude(content="")
-    )
+    """Rescan every script in the project and rebuild the dependency edges.
+
+    All code parts are scanned (script, HTML, client script, CSS), so e.g. a
+    UI Page whose client script calls a Script Include is detected too.
+    """
+    items = [
+        item
+        for item in project.items.exclude(kind=Item.Kind.IMAGE)
+        if item.all_code
+    ]
     Dependency.objects.filter(from_item__project=project).delete()
 
     edges = []
@@ -81,17 +87,21 @@ def rebuild_project_dependencies(project):
         for source in items:
             if source.pk == target.pk:
                 continue
-            if pattern.search(source.content):
+            if pattern.search(source.all_code):
                 edges.append(Dependency(from_item=source, to_item=target))
     Dependency.objects.bulk_create(edges, ignore_conflicts=True)
     return len(edges)
 
 
-def build_dependency_tree(project):
+def build_dependency_tree(project, direction="deps"):
     """Nested structure for rendering the project's dependency tree.
 
-    Roots are scripts nothing else depends on (entry points such as Business
-    Rules or UI Pages); their dependencies nest underneath, GitHub-style.
+    direction="deps" (call tree): roots are entry points nothing else calls;
+    each node's children are the scripts it depends on.
+    direction="usage" (impact tree): the graph is flipped - roots are shared
+    scripts that call nothing themselves (e.g. Script Includes); each node's
+    children are the scripts that USE it, answering "what breaks if I change
+    this?".
     Returns (roots, standalone) where each node is
     {"item": Item, "children": [...], "cycle": bool}.
     """
@@ -102,10 +112,14 @@ def build_dependency_tree(project):
     has_incoming = set()
     in_any_edge = set()
     for edge in edges:
-        children_map.setdefault(edge.from_item_id, []).append(edge.to_item_id)
-        has_incoming.add(edge.to_item_id)
-        in_any_edge.add(edge.from_item_id)
-        in_any_edge.add(edge.to_item_id)
+        if direction == "usage":
+            parent_id, child_id = edge.to_item_id, edge.from_item_id
+        else:
+            parent_id, child_id = edge.from_item_id, edge.to_item_id
+        children_map.setdefault(parent_id, []).append(child_id)
+        has_incoming.add(child_id)
+        in_any_edge.add(parent_id)
+        in_any_edge.add(child_id)
 
     def node_for(pk, path):
         children = []

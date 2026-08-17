@@ -76,6 +76,18 @@ class Item(models.Model):
         WIDGET = "widget", "Widget"
         OTHER = "other", "Other"
 
+    class SubType(models.TextChoices):
+        # Client Script types
+        ONLOAD = "onload", "onLoad"
+        ONCHANGE = "onchange", "onChange"
+        ONSUBMIT = "onsubmit", "onSubmit"
+        ONCELLEDIT = "oncelledit", "onCellEdit"
+        # Business Rule "when"
+        BEFORE = "before", "Before"
+        AFTER = "after", "After"
+        ASYNC = "async", "Async"
+        DISPLAY = "display", "Display"
+
     LANGUAGE_CHOICES = [
         ("javascript", "JavaScript"),
         ("python", "Python"),
@@ -134,6 +146,41 @@ class Item(models.Model):
     content = models.TextField(
         blank=True, help_text="Pasted source code or XML content."
     )
+    # ServiceNow per-component metadata (all optional; the form shows only
+    # the ones relevant to the selected script type).
+    sub_type = models.CharField(
+        max_length=20, choices=SubType.choices, blank=True,
+        help_text="Client Script type (onLoad...) or Business Rule 'when' (before...).",
+    )
+    table_name = models.CharField(
+        max_length=80, blank=True,
+        help_text="Table the script runs on (e.g. incident).",
+    )
+    field_name = models.CharField(
+        max_length=80, blank=True,
+        help_text="Field an onChange Client Script watches.",
+    )
+    br_order = models.IntegerField(
+        null=True, blank=True, help_text="Business Rule execution order."
+    )
+    operations = models.CharField(
+        max_length=100, blank=True,
+        help_text="Operations the Business Rule runs on (e.g. insert, update).",
+    )
+    condition = models.TextField(
+        blank=True, help_text="Condition / filter (Business Rule, UI Action).",
+    )
+    client_callable = models.BooleanField(
+        default=False, help_text="Script Include is client callable (GlideAjax)."
+    )
+    api_endpoint = models.CharField(
+        max_length=200, blank=True,
+        help_text="Scripted REST endpoint, e.g. GET /api/x_scope/v1/things.",
+    )
+    # Extra code parts for multi-script components (UI Page, Widget).
+    html_content = models.TextField(blank=True)
+    client_content = models.TextField(blank=True)
+    css_content = models.TextField(blank=True)
     upload = models.FileField(upload_to=upload_path, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -159,7 +206,43 @@ class Item(models.Model):
 
     @property
     def has_text(self):
-        return bool(self.content)
+        return bool(
+            self.content or self.html_content or self.client_content or self.css_content
+        )
+
+    @property
+    def all_code(self):
+        """Every code part joined — what dependency detection scans."""
+        return "\n".join(
+            part for part in
+            [self.content, self.html_content, self.client_content, self.css_content]
+            if part
+        )
+
+    def code_parts(self):
+        """(dom_id, label, text, language) for each non-empty code part,
+        labelled for the component type - drives the detail-page viewers."""
+        st = self.script_type
+        if st == self.ScriptType.UI_PAGE:
+            main_label = "Processing Script"
+        elif st == self.ScriptType.WIDGET:
+            main_label = "Server Script"
+        elif st == self.ScriptType.REST_API:
+            main_label = "Operation Script"
+        else:
+            main_label = "Source Code"
+        html_label = "HTML Template" if st == self.ScriptType.WIDGET else "HTML (Jelly)"
+        client_label = (
+            "Client Controller" if st == self.ScriptType.WIDGET else "Client Script"
+        )
+        main_language = "xml" if self.kind == self.Kind.XML else self.language
+        parts = [
+            ("part-html", html_label, self.html_content, "html"),
+            ("part-client", client_label, self.client_content, "javascript"),
+            ("part-css", "CSS", self.css_content, "css"),
+            ("item-content", main_label, self.content, main_language),
+        ]
+        return [p for p in parts if p[2]]
 
     @property
     def screenshots(self):

@@ -98,42 +98,65 @@
     return null;
   }
 
-  function initEditor() {
-    var area = document.getElementById("id_content");
-    if (!area || typeof CodeMirror === "undefined") {
+  var PART_MODES = {
+    main: null, // resolved via currentMode()
+    html: "text/html",
+    javascript: "text/javascript",
+    css: "text/css"
+  };
+
+  function initEditors() {
+    if (typeof CodeMirror === "undefined") {
       return;
     }
-    editor = CodeMirror.fromTextArea(area, {
-      mode: currentMode(),
-      theme: cmTheme(),
-      lineNumbers: true,
-      lineWrapping: false,
-      indentUnit: 4,
-      tabSize: 4,
-      matchBrackets: true,
-      autoCloseBrackets: true,
-      styleActiveLine: true,
-      viewportMargin: Infinity,
-      extraKeys: {
-        "Ctrl-/": "toggleComment",
-        "Cmd-/": "toggleComment",
-        "Tab": function (cm) {
-          if (cm.somethingSelected()) {
-            cm.indentSelection("add");
-          } else {
-            cm.replaceSelection("    ", "end");
+    var areas = document.querySelectorAll("textarea.code-area");
+    var i;
+    for (i = 0; i < areas.length; i++) {
+      (function (area) {
+        var partMode = area.getAttribute("data-mode") || "main";
+        var cm = CodeMirror.fromTextArea(area, {
+          mode: partMode === "main" ? currentMode() : PART_MODES[partMode],
+          theme: cmTheme(),
+          lineNumbers: true,
+          lineWrapping: false,
+          indentUnit: 4,
+          tabSize: 4,
+          matchBrackets: true,
+          autoCloseBrackets: true,
+          styleActiveLine: true,
+          viewportMargin: Infinity,
+          extraKeys: {
+            "Ctrl-/": "toggleComment",
+            "Cmd-/": "toggleComment",
+            "Tab": function (inner) {
+              if (inner.somethingSelected()) {
+                inner.indentSelection("add");
+              } else {
+                inner.replaceSelection("    ", "end");
+              }
+            }
           }
+        });
+        cm.on("change", function () { cm.save(); });
+        cmInstances.push(cm);
+        if (partMode === "main") {
+          editor = cm;
         }
-      }
-    });
-    editor.on("change", function () { editor.save(); });
-    cmInstances.push(editor);
+      })(areas[i]);
+    }
 
     var languageSelect = document.getElementById("id_language");
-    if (languageSelect) {
+    if (languageSelect && editor) {
       languageSelect.addEventListener("change", function () {
         editor.setOption("mode", currentMode());
       });
+    }
+  }
+
+  function refreshEditors() {
+    var i;
+    for (i = 0; i < cmInstances.length; i++) {
+      cmInstances[i].refresh();
     }
   }
 
@@ -322,10 +345,107 @@
     });
   }
 
-  /* ---- Item form: segmented type switch + conditional fields ----------- */
+  /* ---- Item form: segmented type switch + per-component fields --------- */
 
   function show(el, on) {
     if (el) { el.style.display = on ? "" : "none"; }
+  }
+
+  // Which metadata fields, extra code parts, and labels each ServiceNow
+  // component type gets. Mirrors the real platform schemas.
+  var SN_SCHEMA = {
+    script_include: { fields: ["callable-field"], contentLabel: "Script" },
+    business_rule: {
+      fields: ["subtype-field", "table-field", "order-field", "operations-field", "condition-field"],
+      subtypeLabel: "When", subtypes: ["before", "after", "async", "display"],
+      contentLabel: "Script"
+    },
+    client_script: {
+      fields: ["subtype-field", "table-field", "fieldname-field"],
+      subtypeLabel: "Type", subtypes: ["onload", "onchange", "onsubmit", "oncelledit"],
+      contentLabel: "Script"
+    },
+    ui_page: {
+      parts: ["html-part", "client-part"],
+      contentLabel: "Processing Script"
+    },
+    ui_action: { fields: ["table-field", "condition-field"], contentLabel: "Script" },
+    ui_macro: { contentLabel: "XML (Jelly)" },
+    scheduled_job: { contentLabel: "Script" },
+    fix_script: { contentLabel: "Script" },
+    rest_api: { fields: ["endpoint-field"], contentLabel: "Operation Script" },
+    widget: {
+      parts: ["html-part", "client-part", "css-part"],
+      partLabels: { "html-part": "HTML Template", "client-part": "Client Controller" },
+      contentLabel: "Server Script"
+    },
+    other: { contentLabel: "Source Code" }
+  };
+  var DEFAULT_PART_LABELS = { "html-part": "HTML (Jelly)", "client-part": "Client Script" };
+  var subtypeOptions = null; // captured from the full select on first use
+
+  function applyScriptType() {
+    var kindSelect = document.getElementById("id_kind");
+    var typeSelect = document.getElementById("id_script_type");
+    if (!typeSelect) { return; }
+    var kind = kindSelect ? kindSelect.value : "code";
+    var schema = SN_SCHEMA[typeSelect.value] || SN_SCHEMA.other;
+    var isCode = kind === "code";
+    var i;
+
+    var snFields = document.querySelectorAll(".sn-field");
+    for (i = 0; i < snFields.length; i++) {
+      var visible = isCode && (schema.fields || []).indexOf(snFields[i].id) !== -1;
+      snFields[i].style.display = visible ? "" : "none";
+    }
+    var parts = document.querySelectorAll(".code-part");
+    for (i = 0; i < parts.length; i++) {
+      var partOn = isCode && (schema.parts || []).indexOf(parts[i].id) !== -1;
+      parts[i].style.display = partOn ? "" : "none";
+      var labelEl = parts[i].querySelector("[data-part-label]");
+      if (labelEl) {
+        labelEl.textContent =
+          (schema.partLabels && schema.partLabels[parts[i].id]) ||
+          DEFAULT_PART_LABELS[parts[i].id] || labelEl.textContent;
+      }
+    }
+
+    var contentLabel = document.getElementById("content-label");
+    if (contentLabel) {
+      contentLabel.textContent = kind === "xml" ? "XML Content" : schema.contentLabel;
+    }
+    var subtypeLabel = document.getElementById("subtype-label");
+    if (subtypeLabel && schema.subtypeLabel) {
+      subtypeLabel.textContent = schema.subtypeLabel;
+    }
+
+    // Narrow the sub_type select to the options valid for this component.
+    var subSelect = document.getElementById("id_sub_type");
+    if (subSelect) {
+      if (!subtypeOptions) {
+        subtypeOptions = [];
+        for (i = 0; i < subSelect.options.length; i++) {
+          subtypeOptions.push({
+            value: subSelect.options[i].value,
+            text: subSelect.options[i].text
+          });
+        }
+      }
+      var wanted = schema.subtypes || [];
+      var current = subSelect.value;
+      subSelect.innerHTML = "";
+      for (i = 0; i < subtypeOptions.length; i++) {
+        var opt = subtypeOptions[i];
+        if (opt.value === "" || wanted.indexOf(opt.value) !== -1) {
+          var el = document.createElement("option");
+          el.value = opt.value;
+          el.text = opt.text;
+          subSelect.appendChild(el);
+        }
+      }
+      subSelect.value = wanted.indexOf(current) !== -1 ? current : "";
+    }
+    refreshEditors();
   }
 
   function applyKind(kind) {
@@ -345,8 +465,8 @@
     }
     if (editor) {
       editor.setOption("mode", currentMode());
-      editor.refresh();
     }
+    applyScriptType();
   }
 
   function initKindSwitch() {
@@ -367,6 +487,10 @@
     }
     if (!kindSelect.value) {
       kindSelect.value = wrap.getAttribute("data-initial") || "code";
+    }
+    var typeSelect = document.getElementById("id_script_type");
+    if (typeSelect) {
+      typeSelect.addEventListener("change", applyScriptType);
     }
     applyKind(kindSelect.value);
   }
@@ -409,7 +533,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     initCopyButtons();
-    initEditor();
+    initEditors();
     initViewers();
     initDropzone();
     initKindSwitch();

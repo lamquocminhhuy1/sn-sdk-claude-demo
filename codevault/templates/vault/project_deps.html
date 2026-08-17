@@ -27,11 +27,26 @@
   <a class="tab-link active" href="{% url 'project_dependencies' project.slug %}">Dependency tree</a>
 </div>
 
-<p class="hint">
-  Detection: each script has an <strong>identifier</strong> (e.g. a Script Include class name,
-  auto-detected from <code>Class.create()</code>). If script A's code mentions script B's
-  identifier, A is shown as depending on B. Entry points (nothing calls them) are at the top.
-</p>
+<div class="filters" style="margin-bottom:14px">
+  <span class="pillbar">
+    <a class="tab {% if direction == 'deps' %}active{% endif %}" href="?view=deps" title="Caller on top, what it depends on nested below">Call tree</a>
+    <a class="tab {% if direction == 'usage' %}active{% endif %}" href="?view=usage" title="Shared script on top, everything that uses it nested below">Impact tree (Used by)</a>
+  </span>
+</div>
+
+{% if direction == 'usage' %}
+  <p class="hint">
+    <strong>Impact view:</strong> shared scripts (e.g. Script Includes) are at the top;
+    nested under each one is everything that <strong>uses</strong> it — answering
+    "what breaks if I change this?".
+  </p>
+{% else %}
+  <p class="hint">
+    Detection: each script has an <strong>identifier</strong> (e.g. a Script Include class name,
+    auto-detected from <code>Class.create()</code>). If script A's code mentions script B's
+    identifier, A is shown as depending on B. Entry points (nothing calls them) are at the top.
+  </p>
+{% endif %}
 
 <div class="panel deps-panel">
   {% if roots %}

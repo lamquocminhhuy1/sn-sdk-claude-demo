@@ -598,3 +598,13 @@ html[data-theme="light"] .segmented button.active { background: #fff; }
 .login-wrap form p { margin: 0 0 15px; }
 .login-wrap label { display: block; font-weight: 500; font-size: 13px; margin-bottom: 6px; }
 .login-wrap .btn { width: 100%; margin-top: 8px; justify-content: center; }
+
+/* ---- Properties list (item detail) ---- */
+
+.prop-list { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; font-size: 13px; }
+.prop-list dt { color: var(--faint); font-weight: 500; }
+.prop-list dd { margin: 0; color: var(--text); display: flex; align-items: center; gap: 6px; min-width: 0; }
+.prop-list dd code { overflow: hidden; text-overflow: ellipsis; }
+
+/* Extra code-part editors in the form (no toolbar, smaller min height) */
+.code-part .CodeMirror, .code-part .CodeMirror-scroll { min-height: 160px; }

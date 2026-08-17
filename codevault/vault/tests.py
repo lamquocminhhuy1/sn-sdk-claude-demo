@@ -179,6 +179,69 @@ class ItemTests(BaseTestCase):
         self.assertContains(response, "The BR")
         self.assertNotContains(response, "The SI")
 
+    def test_client_script_captures_servicenow_fields(self):
+        self.login()
+        self.client.post(
+            reverse("item_create", args=[self.project.slug]),
+            {
+                "kind": "code", "script_type": "client_script",
+                "title": "Validate form", "language": "javascript",
+                "content": "function onChange(control, oldValue, newValue) {}",
+                "sub_type": "onchange", "table_name": "incident",
+                "field_name": "assignment_group",
+            },
+        )
+        item = Item.objects.get(title="Validate form")
+        self.assertEqual(item.sub_type, "onchange")
+        self.assertEqual(item.table_name, "incident")
+        self.assertEqual(item.field_name, "assignment_group")
+
+    def test_ui_page_multi_part_code(self):
+        self.login()
+        self.client.post(
+            reverse("item_create", args=[self.project.slug]),
+            {
+                "kind": "code", "script_type": "ui_page",
+                "title": "Report page", "language": "javascript",
+                "content": "",
+                "html_content": "<j:jelly>hello</j:jelly>",
+                "client_content": "var x = 1;",
+            },
+        )
+        item = Item.objects.get(title="Report page")
+        self.assertTrue(item.has_text)
+        labels = [p[1] for p in item.code_parts()]
+        self.assertEqual(labels, ["HTML (Jelly)", "Client Script"])
+
+    def test_dependency_detected_in_client_content(self):
+        si = Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            script_type="script_include", title="CalcUtils SI",
+            content="var CalcUtils = Class.create();", identifier="CalcUtils",
+        )
+        page = Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            script_type="ui_page", title="Page",
+            client_content="var u = new CalcUtils();",
+        )
+        rebuild_project_dependencies(self.project)
+        self.assertEqual(page.depends_on(), [si])
+
+    def test_usage_direction_puts_script_include_at_root(self):
+        si = Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            title="SI", content="var CalcUtils = Class.create();",
+            identifier="CalcUtils",
+        )
+        br = Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            title="BR", content="new CalcUtils().run();",
+        )
+        rebuild_project_dependencies(self.project)
+        roots, _ = build_dependency_tree(self.project, direction="usage")
+        self.assertEqual([r["item"] for r in roots], [si])
+        self.assertEqual([c["item"] for c in roots[0]["children"]], [br])
+
     def test_raw_view(self):
         self.login()
         item = Item.objects.create(

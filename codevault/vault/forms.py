@@ -32,6 +32,17 @@ class ItemForm(forms.ModelForm):
             "related_to",
             "language",
             "content",
+            "html_content",
+            "client_content",
+            "css_content",
+            "sub_type",
+            "table_name",
+            "field_name",
+            "br_order",
+            "operations",
+            "condition",
+            "client_callable",
+            "api_endpoint",
             "upload",
             "note",
         ]
@@ -41,8 +52,27 @@ class ItemForm(forms.ModelForm):
                     "rows": 16,
                     "spellcheck": "false",
                     "placeholder": "Paste your code / XML here...",
+                    "class": "code-area",
+                    "data-mode": "main",
                 }
             ),
+            "html_content": forms.Textarea(
+                attrs={"rows": 10, "spellcheck": "false", "class": "code-area", "data-mode": "html"}
+            ),
+            "client_content": forms.Textarea(
+                attrs={"rows": 10, "spellcheck": "false", "class": "code-area", "data-mode": "javascript"}
+            ),
+            "css_content": forms.Textarea(
+                attrs={"rows": 8, "spellcheck": "false", "class": "code-area", "data-mode": "css"}
+            ),
+            "condition": forms.Textarea(
+                attrs={"rows": 2, "placeholder": "e.g. current.priority == 1"}
+            ),
+            "table_name": forms.TextInput(attrs={"placeholder": "e.g. incident"}),
+            "field_name": forms.TextInput(attrs={"placeholder": "e.g. assignment_group"}),
+            "operations": forms.TextInput(attrs={"placeholder": "e.g. insert, update"}),
+            "br_order": forms.NumberInput(attrs={"placeholder": "100"}),
+            "api_endpoint": forms.TextInput(attrs={"placeholder": "GET /api/x_scope/v1/things"}),
             "note": forms.Textarea(
                 attrs={"rows": 3, "placeholder": "Optional note or prompt for Claude..."}
             ),
@@ -101,7 +131,15 @@ class ItemForm(forms.ModelForm):
                     + ", ".join(ALLOWED_XML_EXTENSIONS)
                 )
         elif kind == Item.Kind.CODE:
-            if not content:
-                raise forms.ValidationError("Paste the source code into the content field.")
+            has_any_code = (
+                content
+                or (cleaned.get("html_content") or "").strip()
+                or (cleaned.get("client_content") or "").strip()
+                or (cleaned.get("css_content") or "").strip()
+            )
+            if not has_any_code:
+                raise forms.ValidationError(
+                    "Paste the code into at least one script field."
+                )
 
         return cleaned

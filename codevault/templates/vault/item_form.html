@@ -37,9 +37,27 @@
         {{ form.title }}
       </div>
 
+      {{ form.html_content.errors }}
+      <div class="field code-part" id="html-part">
+        <label for="id_html_content" data-part-label>HTML (Jelly)</label>
+        <div class="editor-card">{{ form.html_content }}</div>
+      </div>
+
+      {{ form.client_content.errors }}
+      <div class="field code-part" id="client-part">
+        <label for="id_client_content" data-part-label>Client Script</label>
+        <div class="editor-card">{{ form.client_content }}</div>
+      </div>
+
+      {{ form.css_content.errors }}
+      <div class="field code-part" id="css-part">
+        <label for="id_css_content">CSS</label>
+        <div class="editor-card">{{ form.css_content }}</div>
+      </div>
+
       {{ form.content.errors }}
       <div class="field" id="content-field">
-        <label for="id_content">Payload (CodeMirror)</label>
+        <label for="id_content" id="content-label">Script</label>
         <div class="editor-card">
           <div class="editor-toolbar">
             <span id="language-row">{{ form.language }}</span>
@@ -68,6 +86,54 @@
           <div class="field" id="script-type-field">
             <label for="id_script_type">Script Type</label>
             {{ form.script_type }}
+          </div>
+
+          {{ form.sub_type.errors }}
+          <div class="field sn-field" id="subtype-field">
+            <label for="id_sub_type" id="subtype-label">Type</label>
+            {{ form.sub_type }}
+          </div>
+
+          {{ form.table_name.errors }}
+          <div class="field sn-field" id="table-field">
+            <label for="id_table_name">Table</label>
+            {{ form.table_name }}
+          </div>
+
+          {{ form.field_name.errors }}
+          <div class="field sn-field" id="fieldname-field">
+            <label for="id_field_name">Field name <span class="helptext" style="display:inline">(onChange)</span></label>
+            {{ form.field_name }}
+          </div>
+
+          {{ form.br_order.errors }}
+          <div class="field sn-field" id="order-field">
+            <label for="id_br_order">Order</label>
+            {{ form.br_order }}
+          </div>
+
+          {{ form.operations.errors }}
+          <div class="field sn-field" id="operations-field">
+            <label for="id_operations">Operations</label>
+            {{ form.operations }}
+          </div>
+
+          {{ form.condition.errors }}
+          <div class="field sn-field" id="condition-field">
+            <label for="id_condition">Condition</label>
+            {{ form.condition }}
+          </div>
+
+          {{ form.client_callable.errors }}
+          <div class="check-row sn-field" id="callable-field">
+            {{ form.client_callable }}
+            <label for="id_client_callable">Client callable (GlideAjax)</label>
+          </div>
+
+          {{ form.api_endpoint.errors }}
+          <div class="field sn-field" id="endpoint-field">
+            <label for="id_api_endpoint">Endpoint</label>
+            {{ form.api_endpoint }}
           </div>
 
           <div id="identifier-area">

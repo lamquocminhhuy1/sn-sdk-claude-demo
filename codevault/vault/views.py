@@ -101,7 +101,10 @@ def project_detail(request, slug):
             Q(title__icontains=query)
             | Q(note__icontains=query)
             | Q(content__icontains=query)
+            | Q(html_content__icontains=query)
+            | Q(client_content__icontains=query)
             | Q(identifier__icontains=query)
+            | Q(table_name__icontains=query)
         )
 
     paginator = Paginator(items, 12)
@@ -131,11 +134,17 @@ def project_dependencies(request, slug):
             request, "Rescanned project: " + str(count) + " dependency link(s) found."
         )
         return redirect("project_dependencies", slug=project.slug)
-    roots, standalone = build_dependency_tree(project)
+    direction = "usage" if request.GET.get("view") == "usage" else "deps"
+    roots, standalone = build_dependency_tree(project, direction=direction)
     return render(
         request,
         "vault/project_deps.html",
-        {"project": project, "roots": roots, "standalone": standalone},
+        {
+            "project": project,
+            "roots": roots,
+            "standalone": standalone,
+            "direction": direction,
+        },
     )
 
 

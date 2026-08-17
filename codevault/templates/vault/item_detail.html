@@ -53,24 +53,26 @@
       </div>
     {% endif %}
 
-    {% if item.has_text %}
+    {% for part_id, part_label, part_text, part_language in item.code_parts %}
       <div class="card-box" style="margin-bottom:20px">
         <div class="card-h">
-          <span class="h-ico">&#8985;</span> Source Code
+          <span class="h-ico">&#8985;</span> {{ part_label }}
           <span class="card-h-actions">
-            <button class="copy-btn" data-copy-target="item-content">&#10064; Copy</button>
-            <a class="copy-btn" href="{% url 'item_raw' item.uid %}" target="_blank" rel="noopener">{ } Raw</a>
-            {% if item.upload %}
-              <a class="copy-btn" href="{% url 'serve_media' item.upload.name %}?download=1">Download</a>
+            <button class="copy-btn" data-copy-target="{{ part_id }}">&#10064; Copy</button>
+            {% if part_id == 'item-content' %}
+              <a class="copy-btn" href="{% url 'item_raw' item.uid %}" target="_blank" rel="noopener">{ } Raw</a>
+              {% if item.upload %}
+                <a class="copy-btn" href="{% url 'serve_media' item.upload.name %}?download=1">Download</a>
+              {% endif %}
             {% endif %}
           </span>
         </div>
-        <div class="cm-viewer" data-code-viewer data-language="{% if item.kind == 'xml' %}xml{% else %}{{ item.language }}{% endif %}">
-          <textarea id="item-content" readonly style="display:none">{{ item.content }}</textarea>
-          <noscript><pre class="codeblock">{{ item.content }}</pre></noscript>
+        <div class="cm-viewer" data-code-viewer data-language="{{ part_language }}">
+          <textarea id="{{ part_id }}" readonly style="display:none">{{ part_text }}</textarea>
+          <noscript><pre class="codeblock">{{ part_text }}</pre></noscript>
         </div>
       </div>
-    {% endif %}
+    {% endfor %}
 
     {% if item.note %}
       <div class="card-box" style="margin-bottom:20px">
@@ -81,6 +83,24 @@
   </div>
 
   <aside class="detail-side">
+    {% if item.sub_type or item.table_name or item.field_name or item.br_order or item.operations or item.condition or item.client_callable or item.api_endpoint %}
+      <div class="card-box">
+        <div class="card-h"><span class="h-ico">&#9881;</span> Properties</div>
+        <div class="side-sec">
+          <dl class="prop-list">
+            {% if item.sub_type %}<dt>{% if item.script_type == 'business_rule' %}When{% else %}Type{% endif %}</dt><dd><code>{{ item.get_sub_type_display }}</code></dd>{% endif %}
+            {% if item.table_name %}<dt>Table</dt><dd><code>{{ item.table_name }}</code></dd>{% endif %}
+            {% if item.field_name %}<dt>Field</dt><dd><code>{{ item.field_name }}</code></dd>{% endif %}
+            {% if item.br_order %}<dt>Order</dt><dd>{{ item.br_order }}</dd>{% endif %}
+            {% if item.operations %}<dt>Operations</dt><dd>{{ item.operations }}</dd>{% endif %}
+            {% if item.client_callable %}<dt>Client callable</dt><dd><span class="status-dot"></span> Yes</dd>{% endif %}
+            {% if item.api_endpoint %}<dt>Endpoint</dt><dd><code>{{ item.api_endpoint }}</code></dd>{% endif %}
+            {% if item.condition %}<dt>Condition</dt><dd><code>{{ item.condition }}</code></dd>{% endif %}
+          </dl>
+        </div>
+      </div>
+    {% endif %}
+
     {% if not item.is_image %}
       <div class="card-box">
         <div class="card-h"><span class="h-ico">&#9741;</span> Relationships</div>
