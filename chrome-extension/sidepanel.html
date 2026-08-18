@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dependency Tracker</title>
+<link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">Dependency Tracker</span>
+    <button id="rescan-btn" class="btn secondary small" title="Rebuild the dependency graph now">&#8635; Rescan</button>
+  </header>
+  <main id="app">
+    <div id="state-loading" class="state">Loading…</div>
+
+    <div id="state-no-context" class="state" hidden>
+      <p>Open a Script Include, Business Rule, Client Script, UI Page, UI
+      Action, Scheduled Job, Scripted REST resource, or Widget record in
+      this tab to see its dependencies.</p>
+    </div>
+
+    <div id="state-not-scanned" class="state" hidden>
+      <p><strong id="not-scanned-title"></strong></p>
+      <p class="muted">This record hasn't been scanned yet.</p>
+      <button id="rescan-btn-2" class="btn small">Rescan now</button>
+    </div>
+
+    <div id="state-error" class="state" hidden>
+      <p class="error-text" id="error-text"></p>
+      <p class="muted">Check that the Dependency Tracker REST API is deployed
+      on this instance and that you're logged in.</p>
+    </div>
+
+    <div id="state-result" hidden>
+      <div class="record-head">
+        <span id="record-badge" class="badge"></span>
+        <h2 id="record-name"></h2>
+      </div>
+
+      <section class="rel-section">
+        <h3>Depends on <span id="depends-count" class="count"></span></h3>
+        <ul id="depends-list" class="rel-list"></ul>
+      </section>
+
+      <section class="rel-section">
+        <h3>Used by <span id="usedby-count" class="count"></span></h3>
+        <ul id="usedby-list" class="rel-list"></ul>
+      </section>
+    </div>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

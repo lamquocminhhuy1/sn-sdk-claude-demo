@@ -5,9 +5,18 @@
   "scripts": {
     "deploy": "snc ui-component deploy",
     "develop": "snc ui-component develop",
-    "lint": "snc lint"
+    "lint": "snc lint",
+    "fluent:build": "now-sdk build",
+    "fluent:deploy": "now-sdk install",
+    "fluent:transform": "now-sdk transform",
+    "fluent:types": "now-sdk dependencies"
+  },
+  "imports": {
+    "#now:*": "./@types/servicenow/fluent/*/index.js"
   },
   "devDependencies": {
-    "@servicenow/cli": "latest"
+    "@servicenow/cli": "latest",
+    "@servicenow/sdk": "4.10.1",
+    "@servicenow/glide": "27.0.5"
   }
 }
