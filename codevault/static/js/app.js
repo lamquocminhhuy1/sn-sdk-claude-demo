@@ -508,6 +508,61 @@
     apply();
   }
 
+  /* ---- Dependency-tree collapse/expand --------------------------------- */
+
+  function setNodeCollapsed(li, collapsed) {
+    li.classList.toggle("collapsed", collapsed);
+    var toggle = li.querySelector(".tree-card > .tree-toggle");
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    }
+  }
+
+  function expandAncestors(li) {
+    var container = li.parentElement; // the <ul class="tree"> holding this node
+    while (container) {
+      var ancestor = container.closest(".tree-node");
+      if (!ancestor) {
+        break;
+      }
+      setNodeCollapsed(ancestor, false);
+      container = ancestor.parentElement;
+    }
+  }
+
+  function initDepsTree() {
+    var expandAllBtn = document.getElementById("tree-expand-all");
+    var collapseAllBtn = document.getElementById("tree-collapse-all");
+    if (!expandAllBtn && !collapseAllBtn && !document.querySelector(".tree-toggle")) {
+      return;
+    }
+
+    document.addEventListener("click", function (e) {
+      var btn = e.target.closest(".tree-toggle");
+      if (!btn) {
+        return;
+      }
+      var li = btn.closest(".tree-node");
+      if (!li) {
+        return;
+      }
+      setNodeCollapsed(li, !li.classList.contains("collapsed"));
+    });
+
+    if (expandAllBtn) {
+      expandAllBtn.addEventListener("click", function () {
+        var i, nodes = document.querySelectorAll(".tree-node.has-children");
+        for (i = 0; i < nodes.length; i++) { setNodeCollapsed(nodes[i], false); }
+      });
+    }
+    if (collapseAllBtn) {
+      collapseAllBtn.addEventListener("click", function () {
+        var i, nodes = document.querySelectorAll(".tree-node.has-children");
+        for (i = 0; i < nodes.length; i++) { setNodeCollapsed(nodes[i], true); }
+      });
+    }
+  }
+
   /* ---- Dependency-tree filter ----------------------------------------- */
 
   function initDepsFilter() {
@@ -517,12 +572,16 @@
       var q = input.value.toLowerCase();
       var nodes = document.querySelectorAll(".tree-node");
       var cards = document.querySelectorAll(".sa-card");
-      var i;
+      var i, matches;
       // A tree node stays visible when its subtree mentions the query,
-      // so ancestors of a match never disappear.
+      // so ancestors of a match never disappear. Matching nodes also force
+      // any collapsed ancestor open so the result is actually visible.
       for (i = 0; i < nodes.length; i++) {
-        nodes[i].style.display =
-          !q || nodes[i].textContent.toLowerCase().indexOf(q) !== -1 ? "" : "none";
+        matches = !q || nodes[i].textContent.toLowerCase().indexOf(q) !== -1;
+        nodes[i].style.display = matches ? "" : "none";
+        if (matches && q) {
+          expandAncestors(nodes[i]);
+        }
       }
       for (i = 0; i < cards.length; i++) {
         cards[i].style.display =
@@ -539,6 +598,7 @@
     initKindSwitch();
     initIdentifierToggle();
     initThemeToggle();
+    initDepsTree();
     initDepsFilter();
   });
 })();

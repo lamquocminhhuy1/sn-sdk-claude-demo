@@ -15,6 +15,8 @@
     <span class="searchbox">
       <input type="text" id="deps-filter" placeholder="Filter scripts..." autocomplete="off">
     </span>
+    <button type="button" id="tree-expand-all" class="btn secondary small">Expand all</button>
+    <button type="button" id="tree-collapse-all" class="btn secondary small">Collapse all</button>
     <form method="post" style="margin:0">
       {% csrf_token %}
       <button class="btn secondary" type="submit" title="Rescan all scripts in this project for calls to each other's identifiers">&#8635; Rescan</button>

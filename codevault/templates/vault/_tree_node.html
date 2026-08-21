@@ -1,7 +1,13 @@
-<li class="tree-node">
+<li class="tree-node{% if node.children %} has-children{% endif %}">
   <div class="tree-card {% if node.cycle %}cycle{% endif %} {% if root %}root{% endif %}">
+    {% if node.children %}
+      <button type="button" class="tree-toggle" aria-expanded="true" title="Collapse/expand">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    {% endif %}
     <span class="badge {{ node.item.script_type }}">{% if node.item.kind == 'xml' %}XML{% else %}{{ node.item.get_script_type_display }}{% endif %}</span>
     <a href="{{ node.item.get_absolute_url }}">{{ node.item.title }}</a>
+    {% if node.children %}<span class="child-count">({{ node.children|length }})</span>{% endif %}
     {% with shots=node.item.screenshots %}
       {% if shots %}<span class="shot-count" title="{{ shots.count }} screenshot(s)">&#9634; {{ shots.count }}</span>{% endif %}
     {% endwith %}

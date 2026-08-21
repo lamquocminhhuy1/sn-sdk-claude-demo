@@ -447,6 +447,20 @@ html[data-theme="light"] .badge.widget { color: #3b5bbf; border-color: #7f9ae8; 
 .tree-card.root { display: flex; width: 100%; background: var(--surface-3); }
 .tree-card .push-right { margin-left: auto; }
 .tree-card.cycle { border-style: dashed; }
+
+.tree-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; margin: 0 -3px 0 -6px;
+  background: none; border: none; color: var(--faint); cursor: pointer;
+  border-radius: 4px; flex-shrink: 0;
+}
+.tree-toggle:hover { color: var(--text); background: var(--surface-3); }
+.tree-toggle svg { transform: rotate(90deg); transition: transform 0.15s; }
+.tree-toggle[aria-expanded="false"] svg { transform: rotate(0deg); }
+.child-count { font-size: 11.5px; color: var(--faint); font-weight: 500; }
+.tree-node.collapsed > .tree { display: none; }
+.tree-node.collapsed > .tree-card { opacity: 0.85; }
+.tree-node.collapsed > .tree-card .child-count { color: var(--muted); }
 .cycle-pill {
   display: inline-flex; align-items: center; gap: 5px;
   font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
