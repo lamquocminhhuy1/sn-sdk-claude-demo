@@ -115,9 +115,9 @@ class Item(models.Model):
     script_type = models.CharField(
         max_length=20, choices=ScriptType.choices, default=ScriptType.OTHER, blank=True
     )
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=10000)
     identifier = models.CharField(
-        max_length=100,
+        max_length=10000,
         blank=True,
         help_text=(
             "API name other scripts use to call this one (e.g. the Script Include "
@@ -153,18 +153,18 @@ class Item(models.Model):
         help_text="Client Script type (onLoad...) or Business Rule 'when' (before...).",
     )
     table_name = models.CharField(
-        max_length=80, blank=True,
+        max_length=10000, blank=True,
         help_text="Table the script runs on (e.g. incident).",
     )
     field_name = models.CharField(
-        max_length=80, blank=True,
+        max_length=10000, blank=True,
         help_text="Field an onChange Client Script watches.",
     )
     br_order = models.IntegerField(
         null=True, blank=True, help_text="Business Rule execution order."
     )
     operations = models.CharField(
-        max_length=100, blank=True,
+        max_length=10000, blank=True,
         help_text="Operations the Business Rule runs on (e.g. insert, update).",
     )
     condition = models.TextField(
@@ -174,7 +174,7 @@ class Item(models.Model):
         default=False, help_text="Script Include is client callable (GlideAjax)."
     )
     api_endpoint = models.CharField(
-        max_length=200, blank=True,
+        max_length=10000, blank=True,
         help_text="Scripted REST endpoint, e.g. GET /api/x_scope/v1/things.",
     )
     # Extra code parts for multi-script components (UI Page, Widget).

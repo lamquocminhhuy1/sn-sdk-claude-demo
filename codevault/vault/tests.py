@@ -242,6 +242,33 @@ class ItemTests(BaseTestCase):
         self.assertEqual([r["item"] for r in roots], [si])
         self.assertEqual([c["item"] for c in roots[0]["children"]], [br])
 
+    def test_long_content_and_metadata_fields_save(self):
+        # Real ServiceNow scripts (esp. widgets with server+client+HTML+CSS
+        # combined) routinely exceed 10k characters; content/html_content/
+        # client_content/css_content/note/condition are TextField (already
+        # unbounded), and title/identifier/table_name/field_name/operations/
+        # api_endpoint were widened from small CharFields to max_length=10000.
+        self.login()
+        long_code = "var x = 1; // padding\n" * 600  # ~13,800 chars
+        long_title = "T" * 9000
+        long_identifier = "I" * 9000
+        response = self.client.post(
+            reverse("item_create", args=[self.project.slug]),
+            {
+                "kind": "code", "script_type": "script_include",
+                "title": long_title,
+                "identifier": long_identifier, "identifier_is_manual": "on",
+                "language": "javascript", "content": long_code,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        item = Item.objects.get(identifier=long_identifier)
+        self.assertEqual(len(item.title), 9000)
+        # Django's form CharField strips leading/trailing whitespace, so
+        # compare against the stripped value rather than the raw padding.
+        self.assertEqual(item.content, long_code.strip())
+        self.assertGreater(len(item.content), 10000)
+
     def test_raw_view(self):
         self.login()
         item = Item.objects.create(
