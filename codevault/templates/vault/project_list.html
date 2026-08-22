@@ -24,6 +24,11 @@
             <h3>
               <a href="{{ project.get_absolute_url }}">{{ project.name }}</a>
               <span class="chip">{{ project.slug }}</span>
+              {% if project.is_scoped_app %}
+                <span class="chip scope-chip scoped" title="Scoped App">{{ project.scope_name }}</span>
+              {% else %}
+                <span class="chip scope-chip" title="Global Scope">Global</span>
+              {% endif %}
             </h3>
             {% if project.description %}<p>{{ project.description }}</p>{% endif %}
           </div>

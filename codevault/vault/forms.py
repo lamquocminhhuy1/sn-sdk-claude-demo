@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 
 from .models import Item, Project
@@ -5,11 +7,13 @@ from .models import Item, Project
 ALLOWED_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
 ALLOWED_XML_EXTENSIONS = (".xml", ".xsd", ".xsl", ".xslt", ".wsdl")
 
+SCOPE_NAME_RE = re.compile(r"^x_[a-z0-9]+_[a-z0-9_]+$")
+
 
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ["name", "description"]
+        fields = ["name", "description", "scope_type", "scope_name"]
         widgets = {
             "name": forms.TextInput(
                 attrs={"autofocus": "autofocus", "placeholder": "e.g. Incident auto-assignment"}
@@ -17,7 +21,30 @@ class ProjectForm(forms.ModelForm):
             "description": forms.Textarea(
                 attrs={"rows": 3, "placeholder": "What is this project about?"}
             ),
+            "scope_name": forms.TextInput(attrs={"placeholder": "e.g. x_renin_ccr"}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        scope_type = cleaned.get("scope_type")
+        scope_name = (cleaned.get("scope_name") or "").strip().lower()
+
+        if scope_type == Project.ScopeType.SCOPED_APP:
+            if not scope_name:
+                raise forms.ValidationError(
+                    "Enter the scoped app name (e.g. x_renin_ccr) for a Scoped App project."
+                )
+            if not SCOPE_NAME_RE.match(scope_name):
+                raise forms.ValidationError(
+                    "Scope name should look like x_<vendor>_<app>, e.g. x_renin_ccr "
+                    "(lowercase letters, digits, and underscores only)."
+                )
+            cleaned["scope_name"] = scope_name
+        else:
+            # Global scope has no app namespace - drop anything typed before switching.
+            cleaned["scope_name"] = ""
+
+        return cleaned
 
 
 class ItemForm(forms.ModelForm):

@@ -10,12 +10,24 @@ from django.utils.text import slugify
 class Project(models.Model):
     """A GitHub-repo-like container: one folder per project."""
 
+    class ScopeType(models.TextChoices):
+        GLOBAL = "global", "Global Scope"
+        SCOPED_APP = "scoped_app", "Scoped App"
+
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="projects"
     )
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=120, blank=True)
     description = models.TextField(blank=True)
+    scope_type = models.CharField(
+        max_length=20, choices=ScopeType.choices, default=ScopeType.GLOBAL,
+        help_text="Where this project's ServiceNow code lives on the instance.",
+    )
+    scope_name = models.CharField(
+        max_length=100, blank=True,
+        help_text="Scoped app identifier, e.g. x_renin_ccr. Required when Scope is Scoped App.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -45,6 +57,10 @@ class Project(models.Model):
 
     def get_absolute_url(self):
         return reverse("project_detail", args=[self.slug])
+
+    @property
+    def is_scoped_app(self):
+        return self.scope_type == self.ScopeType.SCOPED_APP
 
 
 def upload_path(instance, filename):

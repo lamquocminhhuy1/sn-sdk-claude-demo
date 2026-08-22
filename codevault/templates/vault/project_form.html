@@ -24,6 +24,20 @@
       {{ form.description }}
     </p>
 
+    {{ form.scope_type.errors }}
+    <p>
+      <label for="id_scope_type">Scope</label>
+      {{ form.scope_type }}
+      <span class="helptext">Where this project's code lives on the ServiceNow instance.</span>
+    </p>
+
+    {{ form.scope_name.errors }}
+    <p id="scope-name-field">
+      <label for="id_scope_name">Scoped app name</label>
+      {{ form.scope_name }}
+      <span class="helptext">{{ form.scope_name.help_text }}</span>
+    </p>
+
     <button class="btn" type="submit">{% if is_edit %}Save{% else %}Create project{% endif %}</button>
     <a class="btn secondary" href="{% if is_edit %}{{ project.get_absolute_url }}{% else %}{% url 'project_list' %}{% endif %}">Cancel</a>
   </form>

@@ -5,8 +5,9 @@ from .models import Dependency, Item, Project
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "owner", "created_at")
-    search_fields = ("name", "description")
+    list_display = ("name", "slug", "scope_type", "scope_name", "owner", "created_at")
+    list_filter = ("scope_type",)
+    search_fields = ("name", "description", "scope_name")
     prepopulated_fields = {"slug": ("name",)}
 
 

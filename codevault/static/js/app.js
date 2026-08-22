@@ -508,6 +508,19 @@
     apply();
   }
 
+  function initProjectScopeToggle() {
+    var select = document.getElementById("id_scope_type");
+    var field = document.getElementById("scope-name-field");
+    if (!select || !field) {
+      return;
+    }
+    function apply() {
+      show(field, select.value === "scoped_app");
+    }
+    select.addEventListener("change", apply);
+    apply();
+  }
+
   /* ---- Dependency-tree collapse/expand --------------------------------- */
 
   function setNodeCollapsed(li, collapsed) {
@@ -597,6 +610,7 @@
     initDropzone();
     initKindSwitch();
     initIdentifierToggle();
+    initProjectScopeToggle();
     initThemeToggle();
     initDepsTree();
     initDepsFilter();

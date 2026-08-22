@@ -9,6 +9,11 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
       <span class="label-caps" style="background:var(--surface-3);padding:3px 8px;border-radius:var(--r-badge)">Project</span>
       <span class="chip">{{ project.slug }}</span>
+      {% if project.is_scoped_app %}
+        <span class="chip scope-chip scoped" title="Scoped App">{{ project.scope_name }}</span>
+      {% else %}
+        <span class="chip scope-chip" title="Global Scope">Global</span>
+      {% endif %}
     </div>
     <h1>{{ project.name }}</h1>
     {% if project.description %}<p class="page-sub">{{ project.description }}</p>{% endif %}

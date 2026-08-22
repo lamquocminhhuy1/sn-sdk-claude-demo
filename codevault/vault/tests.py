@@ -37,11 +37,57 @@ class ProjectTests(BaseTestCase):
         self.login()
         response = self.client.post(
             reverse("project_create"),
-            {"name": "Incident Auto Assignment", "description": "test"},
+            {"name": "Incident Auto Assignment", "description": "test", "scope_type": "global"},
         )
         self.assertEqual(response.status_code, 302)
         project = Project.objects.get(name="Incident Auto Assignment")
         self.assertEqual(project.slug, "incident-auto-assignment")
+        self.assertEqual(project.scope_type, "global")
+        self.assertFalse(project.is_scoped_app)
+
+    def test_create_scoped_app_project_requires_scope_name(self):
+        self.login()
+        response = self.client.post(
+            reverse("project_create"),
+            {"name": "CCR Verification", "scope_type": "scoped_app", "scope_name": ""},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Project.objects.filter(name="CCR Verification").exists())
+
+    def test_create_scoped_app_project_validates_name_format(self):
+        self.login()
+        response = self.client.post(
+            reverse("project_create"),
+            {"name": "CCR Verification", "scope_type": "scoped_app", "scope_name": "not a scope name!"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Project.objects.filter(name="CCR Verification").exists())
+
+    def test_create_scoped_app_project_saves_and_lowercases_scope_name(self):
+        self.login()
+        response = self.client.post(
+            reverse("project_create"),
+            {"name": "CCR Verification", "scope_type": "scoped_app", "scope_name": "X_Renin_CCR"},
+        )
+        self.assertEqual(response.status_code, 302)
+        project = Project.objects.get(name="CCR Verification")
+        self.assertTrue(project.is_scoped_app)
+        self.assertEqual(project.scope_name, "x_renin_ccr")
+
+    def test_switching_back_to_global_clears_scope_name(self):
+        self.login()
+        project = Project.objects.create(
+            owner=self.user, name="Was Scoped",
+            scope_type="scoped_app", scope_name="x_renin_ccr",
+        )
+        response = self.client.post(
+            reverse("project_edit", args=[project.slug]),
+            {"name": "Was Scoped", "scope_type": "global", "scope_name": "x_renin_ccr"},
+        )
+        self.assertEqual(response.status_code, 302)
+        project.refresh_from_db()
+        self.assertFalse(project.is_scoped_app)
+        self.assertEqual(project.scope_name, "")
 
     def test_duplicate_names_get_unique_slugs(self):
         p1 = Project.objects.create(owner=self.user, name="Same Name")

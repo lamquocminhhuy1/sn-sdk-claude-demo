@@ -309,6 +309,8 @@ html[data-theme="light"] .badge.widget { color: #3b5bbf; border-color: #7f9ae8; 
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--r-badge); padding: 1px 8px; color: var(--muted); white-space: nowrap;
 }
+.chip.scope-chip.scoped { color: #c3a5ff; border-color: #7c5bd4; background: rgba(124, 91, 212, 0.1); }
+html[data-theme="light"] .chip.scope-chip.scoped { color: #6d3bbf; border-color: #a97ee8; background: rgba(124, 91, 212, 0.08); }
 .tree-card code, .flat-list code, .detail-meta code, .file-row code, .repo-row code {
   font-family: var(--mono); font-size: 11.5px;
   background: var(--surface-2); border: 1px solid var(--border);
