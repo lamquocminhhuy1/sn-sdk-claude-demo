@@ -1,0 +1,15 @@
+{
+  "name": "codevault-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCP server exposing CodeVault's GET/POST API as tools for Claude.",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "codevault-mcp": "./index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.23.8"
+  }
+}

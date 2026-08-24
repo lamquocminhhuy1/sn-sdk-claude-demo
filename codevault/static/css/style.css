@@ -523,6 +523,11 @@ html[data-theme="light"] .chip.scope-chip.scoped { color: #6d3bbf; border-color:
 .cm-viewer .CodeMirror { height: 100%; }
 .codeblock { margin: 0; background: var(--code-bg); color: var(--text); padding: 16px; overflow-x: auto; font-size: 13px; font-family: var(--mono); }
 
+.api-endpoint-table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+.api-endpoint-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+.api-endpoint-table td:first-child { width: 60px; }
+.api-endpoint-table code { font-family: var(--mono); color: var(--text); }
+
 .copy-btn {
   background: var(--surface-3); color: var(--muted);
   border: 1px solid var(--border-strong); border-radius: var(--r);

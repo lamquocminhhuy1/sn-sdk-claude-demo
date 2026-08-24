@@ -2,10 +2,15 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from vault import views
+from vault import api, views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api-access/", views.api_access, name="api_access"),
+    path("api-access/regenerate/", views.api_token_regenerate, name="api_token_regenerate"),
+    path("api/v1/projects/", api.projects_collection, name="api_projects"),
+    path("api/v1/projects/<slug:slug>/items/", api.items_collection, name="api_items"),
+    path("api/v1/items/<uuid:uid>/", api.item_detail, name="api_item_detail"),
     path(
         "login/",
         auth_views.LoginView.as_view(template_name="registration/login.html"),

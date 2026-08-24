@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}API Access · CodeVault{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="label-caps" style="background:var(--surface-3);padding:3px 8px;border-radius:var(--r-badge)">API Access</span>
+    <h1>API Access</h1>
+    <p class="page-sub">Let Claude read and push code into this vault directly, without you copy-pasting.</p>
+  </div>
+</div>
+
+<div class="panel" style="max-width:720px">
+  <h2 style="margin-top:0">Your API token</h2>
+  <p>Send this as <code>Authorization: Bearer &lt;token&gt;</code> on every request. Anyone with this token has full read/write access to your projects — keep it as secret as a password.</p>
+  <p>
+    <input id="api-token-value" type="text" readonly value="{{ token.key }}"
+           style="font-family:monospace;width:100%;max-width:520px" onclick="this.select()">
+    <button class="copy-btn" data-copy-target="api-token-value">&#10064; Copy</button>
+  </p>
+  <form method="post" action="{% url 'api_token_regenerate' %}"
+        onsubmit="return confirm('Regenerate the token? Any client using the current one will stop working immediately.');">
+    {% csrf_token %}
+    <button class="btn secondary small" type="submit">Regenerate token</button>
+  </form>
+</div>
+
+<div class="panel" style="max-width:720px">
+  <h2 style="margin-top:0">Endpoints</h2>
+  <table class="api-endpoint-table">
+    <tr><td><span class="badge">GET</span></td><td><code>/api/v1/projects/</code></td><td>List your projects</td></tr>
+    <tr><td><span class="badge">POST</span></td><td><code>/api/v1/projects/</code></td><td>Create a project (or return the existing one with that name)</td></tr>
+    <tr><td><span class="badge">GET</span></td><td><code>/api/v1/projects/&lt;slug&gt;/items/</code></td><td>List items in a project</td></tr>
+    <tr><td><span class="badge">POST</span></td><td><code>/api/v1/projects/&lt;slug&gt;/items/</code></td><td>Push (create or update) an item</td></tr>
+    <tr><td><span class="badge">GET</span></td><td><code>/api/v1/items/&lt;uid&gt;/</code></td><td>Fetch one item's full code + metadata</td></tr>
+  </table>
+  <p class="helptext">Push matches an existing item by <code>uid</code> &gt; <code>identifier</code> &gt; (<code>kind</code> + <code>title</code>), in that order — pushing the same script twice updates it instead of duplicating it. Screenshots (<code>kind=image</code>) aren't supported through the API.</p>
+</div>
+
+<div class="panel" style="max-width:720px">
+  <h2 style="margin-top:0">Example: pull a project's items</h2>
+  <pre id="curl-pull" class="codeblock">curl {{ base_url }}/api/v1/projects/YOUR-PROJECT-SLUG/items/ \
+  -H "Authorization: Bearer {{ token.key }}"</pre>
+  <button class="copy-btn" data-copy-target="curl-pull">&#10064; Copy</button>
+
+  <h2>Example: push a Script Include</h2>
+  <pre id="curl-push" class="codeblock">curl {{ base_url }}/api/v1/projects/YOUR-PROJECT-SLUG/items/ \
+  -H "Authorization: Bearer {{ token.key }}" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "kind": "code",
+        "script_type": "script_include",
+        "title": "CalcUtils",
+        "identifier": "CalcUtils",
+        "language": "javascript",
+        "content": "var CalcUtils = Class.create();\nCalcUtils.prototype = { initialize: function() {} };"
+      }'</pre>
+  <button class="copy-btn" data-copy-target="curl-push">&#10064; Copy</button>
+</div>
+{% endblock %}

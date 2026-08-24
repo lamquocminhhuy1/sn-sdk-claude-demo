@@ -1,4 +1,5 @@
 import os
+import secrets
 import uuid
 
 from django.conf import settings
@@ -299,3 +300,26 @@ class Dependency(models.Model):
 
     def __str__(self):
         return "{0} -> {1}".format(self.from_item.title, self.to_item.title)
+
+
+def generate_api_key():
+    return secrets.token_hex(32)
+
+
+class ApiToken(models.Model):
+    """One bearer token per user, used by external clients (e.g. Claude) to
+    call the GET/POST API instead of logging in with a session."""
+
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_token"
+    )
+    key = models.CharField(max_length=64, unique=True, default=generate_api_key, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return "API token for {0}".format(self.owner.username)
+
+    def regenerate(self):
+        self.key = generate_api_key()
+        self.save(update_fields=["key"])

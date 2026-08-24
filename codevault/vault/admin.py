@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import Dependency, Item, Project
+from .models import ApiToken, Dependency, Item, Project
+
+
+@admin.register(ApiToken)
+class ApiTokenAdmin(admin.ModelAdmin):
+    list_display = ("owner", "key", "created_at", "last_used_at")
+    readonly_fields = ("key", "created_at", "last_used_at")
 
 
 @admin.register(Project)

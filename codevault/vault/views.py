@@ -11,7 +11,7 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import ItemForm, ProjectForm
-from .models import Item, Project
+from .models import ApiToken, Item, Project
 from .services import build_dependency_tree, fill_identifier, rebuild_project_dependencies
 
 
@@ -146,6 +146,27 @@ def project_dependencies(request, slug):
             "direction": direction,
         },
     )
+
+
+# --------------------------------------------------------------- api access
+
+@login_required
+def api_access(request):
+    token, _ = ApiToken.objects.get_or_create(owner=request.user)
+    return render(
+        request,
+        "vault/api_access.html",
+        {"token": token, "base_url": request.build_absolute_uri("/")[:-1]},
+    )
+
+
+@login_required
+def api_token_regenerate(request):
+    if request.method == "POST":
+        token, _ = ApiToken.objects.get_or_create(owner=request.user)
+        token.regenerate()
+        messages.success(request, "API token regenerated. Update any client using the old one.")
+    return redirect("api_access")
 
 
 # ------------------------------------------------------------------- items

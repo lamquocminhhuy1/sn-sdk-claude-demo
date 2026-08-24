@@ -1,3 +1,4 @@
+import json
 import tempfile
 
 from django.contrib.auth.models import User
@@ -5,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import Dependency, Item, Project
+from .models import ApiToken, Dependency, Item, Project
 from .services import build_dependency_tree, rebuild_project_dependencies
 
 # 1x1 transparent PNG
@@ -461,3 +462,179 @@ class DependencyTests(BaseTestCase):
         self.assertEqual(Dependency.objects.count(), 1)
         self.client.post(reverse("item_delete", args=[si.uid]))
         self.assertEqual(Dependency.objects.count(), 0)
+
+
+class ApiTests(BaseTestCase):
+    def setUp(self):
+        super().setUp()
+        self.token = ApiToken.objects.create(owner=self.user)
+        self.auth = {"HTTP_AUTHORIZATION": "Bearer " + self.token.key}
+
+    def post_json(self, url, data, **extra):
+        extra.update(self.auth)
+        return self.client.post(
+            url, data=json.dumps(data), content_type="application/json", **extra
+        )
+
+    # --- auth -------------------------------------------------------
+
+    def test_missing_token_returns_401(self):
+        response = self.client.get(reverse("api_projects"))
+        self.assertEqual(response.status_code, 401)
+
+    def test_wrong_token_returns_401(self):
+        response = self.client.get(
+            reverse("api_projects"), HTTP_AUTHORIZATION="Bearer not-a-real-token"
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_token_only_sees_its_owners_projects(self):
+        Project.objects.create(owner=self.other, name="Not Mine")
+        response = self.client.get(reverse("api_projects"), **self.auth)
+        names = [p["name"] for p in response.json()["projects"]]
+        self.assertIn("Demo Project", names)
+        self.assertNotIn("Not Mine", names)
+
+    # --- projects -----------------------------------------------------
+
+    def test_create_project_via_api(self):
+        response = self.post_json(
+            reverse("api_projects"),
+            {"name": "API Project", "scope_type": "scoped_app", "scope_name": "X_Renin_CCR"},
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertTrue(body["created"])
+        self.assertEqual(body["project"]["scope_name"], "x_renin_ccr")
+        self.assertTrue(Project.objects.filter(owner=self.user, name="API Project").exists())
+
+    def test_create_project_is_idempotent_by_name(self):
+        response1 = self.post_json(reverse("api_projects"), {"name": "Repeat"})
+        response2 = self.post_json(reverse("api_projects"), {"name": "Repeat"})
+        self.assertEqual(response1.status_code, 201)
+        self.assertEqual(response2.status_code, 200)
+        self.assertFalse(response2.json()["created"])
+        self.assertEqual(Project.objects.filter(owner=self.user, name="Repeat").count(), 1)
+
+    def test_create_project_without_name_fails(self):
+        response = self.post_json(reverse("api_projects"), {})
+        self.assertEqual(response.status_code, 400)
+
+    # --- items: push (create + upsert) ---------------------------------
+
+    def test_push_creates_item(self):
+        response = self.post_json(
+            reverse("api_items", args=[self.project.slug]),
+            {
+                "kind": "code",
+                "script_type": "script_include",
+                "title": "CalcUtils",
+                "identifier": "CalcUtils",
+                "content": "var CalcUtils = Class.create();",
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertTrue(body["created"])
+        self.assertEqual(body["item"]["identifier"], "CalcUtils")
+        item = Item.objects.get(project=self.project, title="CalcUtils")
+        self.assertEqual(item.content, "var CalcUtils = Class.create();")
+        self.assertTrue(item.identifier_is_manual)
+
+    def test_pushing_same_identifier_updates_instead_of_duplicating(self):
+        self.post_json(
+            reverse("api_items", args=[self.project.slug]),
+            {"kind": "code", "title": "CalcUtils", "identifier": "CalcUtils", "content": "v1"},
+        )
+        response = self.post_json(
+            reverse("api_items", args=[self.project.slug]),
+            {"kind": "code", "title": "CalcUtils", "identifier": "CalcUtils", "content": "v2"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["created"])
+        self.assertEqual(Item.objects.filter(project=self.project, identifier="CalcUtils").count(), 1)
+        self.assertEqual(
+            Item.objects.get(project=self.project, identifier="CalcUtils").content, "v2"
+        )
+
+    def test_push_rebuilds_dependencies(self):
+        self.post_json(
+            reverse("api_items", args=[self.project.slug]),
+            {"kind": "code", "title": "CalcUtils SI", "identifier": "CalcUtils", "content": "var CalcUtils = Class.create();"},
+        )
+        self.post_json(
+            reverse("api_items", args=[self.project.slug]),
+            {"kind": "code", "title": "Assignment BR", "content": "new CalcUtils().run();"},
+        )
+        self.assertEqual(Dependency.objects.filter(from_item__project=self.project).count(), 1)
+
+    def test_push_without_title_fails(self):
+        response = self.post_json(
+            reverse("api_items", args=[self.project.slug]), {"kind": "code"}
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_push_image_kind_rejected(self):
+        response = self.post_json(
+            reverse("api_items", args=[self.project.slug]),
+            {"kind": "image", "title": "Screenshot"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_push_to_unknown_project_returns_404(self):
+        response = self.post_json(
+            reverse("api_items", args=["no-such-project"]), {"kind": "code", "title": "X"}
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # --- items: read -----------------------------------------------------
+
+    def test_list_items_and_get_detail(self):
+        item = Item.objects.create(
+            owner=self.user, project=self.project, kind="code",
+            title="Helper", content="var x = 1;",
+        )
+        list_response = self.client.get(
+            reverse("api_items", args=[self.project.slug]), **self.auth
+        )
+        self.assertEqual(list_response.status_code, 200)
+        uids = [i["uid"] for i in list_response.json()["items"]]
+        self.assertIn(str(item.uid), uids)
+
+        detail_response = self.client.get(
+            reverse("api_item_detail", args=[item.uid]), **self.auth
+        )
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.json()["item"]["content"], "var x = 1;")
+
+    def test_cannot_read_another_users_item(self):
+        item = Item.objects.create(
+            owner=self.other,
+            project=Project.objects.create(owner=self.other, name="Other Project"),
+            kind="code", title="Secret", content="x",
+        )
+        response = self.client.get(reverse("api_item_detail", args=[item.uid]), **self.auth)
+        self.assertEqual(response.status_code, 404)
+
+    # --- token management page ------------------------------------------
+
+    def test_api_access_page_requires_login(self):
+        response = self.client.get(reverse("api_access"))
+        self.assertEqual(response.status_code, 302)
+
+    def test_api_access_page_shows_token(self):
+        self.login()
+        response = self.client.get(reverse("api_access"))
+        self.assertContains(response, self.token.key)
+
+    def test_regenerate_token_changes_key(self):
+        self.login()
+        old_key = self.token.key
+        self.client.post(reverse("api_token_regenerate"))
+        self.token.refresh_from_db()
+        self.assertNotEqual(self.token.key, old_key)
+        # the old key must stop working immediately
+        response = self.client.get(
+            reverse("api_projects"), HTTP_AUTHORIZATION="Bearer " + old_key
+        )
+        self.assertEqual(response.status_code, 401)
