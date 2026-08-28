@@ -1,10 +1,12 @@
 import os
 import secrets
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -323,3 +325,69 @@ class ApiToken(models.Model):
     def regenerate(self):
         self.key = generate_api_key()
         self.save(update_fields=["key"])
+
+
+def generate_oauth_id():
+    return secrets.token_urlsafe(24)
+
+
+def generate_oauth_secret():
+    return secrets.token_urlsafe(48)
+
+
+def code_expiry():
+    return timezone.now() + timedelta(minutes=10)
+
+
+def access_token_expiry():
+    return timezone.now() + timedelta(hours=1)
+
+
+class OAuthClient(models.Model):
+    """An OAuth client dynamically registered against this server (RFC 7591)
+    - e.g. claude.ai registers itself the first time a user adds this
+    instance as a custom connector. Public client: no secret is required to
+    use it (redirect_uri + PKCE are what keep the authorization code safe)."""
+
+    client_id = models.CharField(max_length=64, unique=True, default=generate_oauth_id, editable=False)
+    client_name = models.CharField(max_length=200, blank=True)
+    redirect_uris = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.client_name or self.client_id
+
+
+class OAuthAuthorizationCode(models.Model):
+    """A short-lived, single-use authorization code (RFC 6749 4.1 + PKCE)."""
+
+    code = models.CharField(max_length=64, unique=True, default=generate_oauth_id, editable=False)
+    client = models.ForeignKey(OAuthClient, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    redirect_uri = models.CharField(max_length=500)
+    code_challenge = models.CharField(max_length=200)
+    code_challenge_method = models.CharField(max_length=10, default="S256")
+    scope = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=code_expiry)
+    used = models.BooleanField(default=False)
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+
+class OAuthToken(models.Model):
+    """An issued access/refresh token pair for one (client, user)."""
+
+    access_token = models.CharField(max_length=64, unique=True, default=generate_oauth_secret, editable=False)
+    refresh_token = models.CharField(max_length=64, unique=True, default=generate_oauth_secret, editable=False)
+    client = models.ForeignKey(OAuthClient, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    scope = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(default=access_token_expiry)
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at

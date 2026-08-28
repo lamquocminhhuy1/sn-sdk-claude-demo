@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path
 
-from vault import api, mcp_server, views
+from vault import api, mcp_server, oauth, views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -11,7 +11,21 @@ urlpatterns = [
     path("api/v1/projects/", api.projects_collection, name="api_projects"),
     path("api/v1/projects/<slug:slug>/items/", api.items_collection, name="api_items"),
     path("api/v1/items/<uuid:uid>/", api.item_detail, name="api_item_detail"),
+    path("mcp/", mcp_server.mcp_endpoint_oauth, name="mcp_endpoint_oauth"),
     path("mcp/<str:token>/", mcp_server.mcp_endpoint, name="mcp_endpoint"),
+    path(
+        ".well-known/oauth-protected-resource",
+        oauth.protected_resource_metadata,
+        name="oauth_protected_resource_metadata",
+    ),
+    path(
+        ".well-known/oauth-authorization-server",
+        oauth.authorization_server_metadata,
+        name="oauth_authorization_server_metadata",
+    ),
+    path("oauth/register/", oauth.register, name="oauth_register"),
+    path("oauth/authorize/", oauth.authorize, name="oauth_authorize"),
+    path("oauth/token/", oauth.token, name="oauth_token"),
     path(
         "login/",
         auth_views.LoginView.as_view(template_name="registration/login.html"),

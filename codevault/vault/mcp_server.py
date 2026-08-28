@@ -1,17 +1,19 @@
-"""A remote MCP server, reachable at /mcp/<token>/, for claude.ai's
-"Add custom connector" (Settings -> Connectors -> Add custom connector ->
-Remote MCP server URL). This is a second front door onto the exact same
-operations as api.py's HTTP API - see op_* in that module - just speaking
-MCP's JSON-RPC shape instead of plain REST.
+"""A remote MCP server for claude.ai's "Add custom connector" (Settings ->
+Connectors -> Add custom connector -> Remote MCP server URL). Both entry
+points below are a second front door onto the exact same operations as
+api.py's HTTP API - see op_* in that module - just speaking MCP's
+JSON-RPC shape instead of plain REST.
 
-Auth: the token is the URL path segment itself (matched against
-ApiToken.key), because claude.ai's custom-connector dialog offers no field
-for a custom header - only a URL (and optional OAuth, which this doesn't
-implement). Treat this URL exactly like a password: whoever has it has
-full read/write access to that user's CodeVault. Regenerate the token from
-/api-access/ if it leaks; that immediately invalidates the old URL.
+Two front doors, two auth styles:
+  - /mcp/<token>/  (mcp_endpoint): the token is the URL path segment
+    itself, matched against ApiToken.key. Simple, works with curl or a
+    stdio client, but NOT what claude.ai's custom-connector dialog uses -
+    that flow always attempts OAuth first.
+  - /mcp/         (mcp_endpoint_oauth): requires `Authorization: Bearer
+    <access_token>` where the token came from the OAuth flow in oauth.py.
+    This is the URL to paste into claude.ai's connector dialog.
 
-This implements the MCP Streamable HTTP transport in "stateless, JSON
+Both implement the MCP Streamable HTTP transport in "stateless, JSON
 response" mode: no Mcp-Session-Id is issued or required, and every
 response is returned as a single direct JSON body rather than an SSE
 stream. This instance's tools are quick DB reads/writes with no
@@ -21,7 +23,10 @@ server-initiated messages, so no session state or push channel is needed.
 import json
 
 from django.http import HttpResponse, JsonResponse
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+
+from .models import OAuthToken
 
 from .api import ApiError, authenticate_token, op_create_project, op_get_item, op_list_items, op_list_projects, op_push_item
 
@@ -201,19 +206,7 @@ def handle_message(user, message):
     return rpc_result(msg_id, result)
 
 
-@csrf_exempt
-def mcp_endpoint(request, token):
-    if request.method != "POST":
-        return JsonResponse(
-            rpc_error(None, -32000, "Method not allowed - this endpoint only accepts POST."),
-            status=405,
-        )
-
-    try:
-        user = authenticate_token(token)
-    except ApiError as exc:
-        return JsonResponse(rpc_error(None, -32001, exc.message), status=exc.status)
-
+def _process_jsonrpc_body(request, user):
     try:
         body = json.loads(request.body.decode("utf-8")) if request.body else None
     except (ValueError, UnicodeDecodeError):
@@ -230,3 +223,59 @@ def mcp_endpoint(request, token):
     if isinstance(body, list):
         return JsonResponse(responses, safe=False)
     return JsonResponse(responses[0])
+
+
+@csrf_exempt
+def mcp_endpoint(request, token):
+    """The simple token-in-URL front door (see the module docstring in
+    api.py) - for stdio clients, curl, or anything not doing OAuth."""
+    if request.method != "POST":
+        return JsonResponse(
+            rpc_error(None, -32000, "Method not allowed - this endpoint only accepts POST."),
+            status=405,
+        )
+    try:
+        user = authenticate_token(token)
+    except ApiError as exc:
+        return JsonResponse(rpc_error(None, -32001, exc.message), status=exc.status)
+    return _process_jsonrpc_body(request, user)
+
+
+def _resource_metadata_url(request):
+    return request.build_absolute_uri("/")[:-1] + reverse("oauth_protected_resource_metadata")
+
+
+@csrf_exempt
+def mcp_endpoint_oauth(request):
+    """The OAuth-protected front door claude.ai's custom connector uses -
+    see oauth.py for the full authorization flow this expects clients to
+    go through before they show up here with a Bearer access token."""
+    if request.method != "POST":
+        return JsonResponse(
+            rpc_error(None, -32000, "Method not allowed - this endpoint only accepts POST."),
+            status=405,
+        )
+
+    header = request.headers.get("Authorization", "")
+    access_token = header[len("Bearer "):].strip() if header.startswith("Bearer ") else ""
+    challenge = 'Bearer resource_metadata="{0}"'.format(_resource_metadata_url(request))
+
+    if not access_token:
+        response = JsonResponse(rpc_error(None, -32001, "Missing bearer token."), status=401)
+        response["WWW-Authenticate"] = challenge
+        return response
+
+    try:
+        oauth_token = OAuthToken.objects.select_related("user").get(access_token=access_token)
+    except OAuthToken.DoesNotExist:
+        response = JsonResponse(rpc_error(None, -32001, "Invalid or expired access token."), status=401)
+        response["WWW-Authenticate"] = challenge
+        return response
+
+    if oauth_token.is_expired:
+        oauth_token.delete()
+        response = JsonResponse(rpc_error(None, -32001, "Invalid or expired access token."), status=401)
+        response["WWW-Authenticate"] = challenge
+        return response
+
+    return _process_jsonrpc_body(request, oauth_token.user)

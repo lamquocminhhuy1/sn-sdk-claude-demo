@@ -28,18 +28,18 @@
 
 <div class="panel" style="max-width:720px">
   <h2 style="margin-top:0">Connect claude.ai directly (remote MCP)</h2>
-  <p>Settings &rarr; Connectors &rarr; Add custom connector. Paste this as the <strong>Remote MCP server URL</strong> — the token is baked into the URL itself, no OAuth needed.</p>
+  <p>Settings &rarr; Connectors &rarr; Add custom connector. Paste this as the <strong>Remote MCP server URL</strong> — no token to copy, claude.ai signs in as you through a login + authorize screen (OAuth).</p>
   <p>
-    <input id="mcp-url-value" type="text" readonly value="{{ base_url }}/mcp/{{ token.key }}/"
+    <input id="mcp-url-value" type="text" readonly value="{{ base_url }}/mcp/"
            style="font-family:monospace;width:100%;max-width:520px" onclick="this.select()">
     <button class="copy-btn" data-copy-target="mcp-url-value">&#10064; Copy</button>
   </p>
-  <p class="helptext">This URL is as sensitive as the token above — anyone who has it can read and push code as you. Regenerating the token above also changes this URL.</p>
+  <p class="helptext">Name it whatever you like. When you click Add, a browser tab opens asking you to log into CodeVault (if needed) and approve access — that's this instance's own login, not a third party.</p>
 </div>
 
 <div class="panel" style="max-width:720px">
   <h2 style="margin-top:0">Connect Claude Code / Claude Desktop (local MCP)</h2>
-  <p>Uses the same API through a small local server instead — see <code>mcp-server/README.md</code> in the repo for setup. It needs the same base URL and token as above, passed as <code>CODEVAULT_BASE_URL</code> / <code>CODEVAULT_API_TOKEN</code>.</p>
+  <p>Uses the same API through a small local server instead — see <code>mcp-server/README.md</code> in the repo for setup. It authenticates with your API token directly (below) via <code>CODEVAULT_BASE_URL</code> / <code>CODEVAULT_API_TOKEN</code>, no browser login step needed.</p>
 </div>
 
 <div class="panel" style="max-width:720px">
@@ -50,6 +50,8 @@
     <tr><td><span class="badge">GET</span></td><td><code>/api/v1/projects/&lt;slug&gt;/items/</code></td><td>List items in a project</td></tr>
     <tr><td><span class="badge">POST</span></td><td><code>/api/v1/projects/&lt;slug&gt;/items/</code></td><td>Push (create or update) an item</td></tr>
     <tr><td><span class="badge">GET</span></td><td><code>/api/v1/items/&lt;uid&gt;/</code></td><td>Fetch one item's full code + metadata</td></tr>
+    <tr><td><span class="badge">POST</span></td><td><code>/mcp/</code></td><td>MCP endpoint, OAuth-protected (for claude.ai's connector)</td></tr>
+    <tr><td><span class="badge">POST</span></td><td><code>/mcp/&lt;token&gt;/</code></td><td>MCP endpoint, token-in-URL (for Claude Code / Desktop / curl)</td></tr>
   </table>
   <p class="helptext">Push matches an existing item by <code>uid</code> &gt; <code>identifier</code> &gt; (<code>kind</code> + <code>title</code>), in that order — pushing the same script twice updates it instead of duplicating it. Screenshots (<code>kind=image</code>) aren't supported through the API.</p>
 </div>

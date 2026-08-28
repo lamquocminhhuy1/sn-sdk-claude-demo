@@ -1,12 +1,16 @@
+import base64
+import hashlib
 import json
 import tempfile
+from datetime import timedelta
+from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import ApiToken, Dependency, Item, Project
+from .models import ApiToken, Dependency, Item, OAuthClient, OAuthToken, Project
 from .services import build_dependency_tree, rebuild_project_dependencies
 
 # 1x1 transparent PNG
@@ -750,3 +754,250 @@ class McpServerTests(BaseTestCase):
         _, data = self.call_tool("list_projects", {})
         names = [p["name"] for p in data["projects"]]
         self.assertNotIn("Not Mine", names)
+
+
+def pkce_pair():
+    verifier = base64.urlsafe_b64encode(b"x" * 40).rstrip(b"=").decode("ascii")
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
+    return verifier, challenge
+
+
+class OAuthTests(BaseTestCase):
+    """The OAuth 2.0 + PKCE + dynamic client registration flow that
+    claude.ai's custom connector drives against /mcp/."""
+
+    REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback"
+
+    def register_client(self):
+        response = self.client.post(
+            reverse("oauth_register"),
+            data=json.dumps({"client_name": "claude.ai", "redirect_uris": [self.REDIRECT_URI]}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+        return response.json()
+
+    def test_protected_resource_metadata(self):
+        response = self.client.get(reverse("oauth_protected_resource_metadata"))
+        body = response.json()
+        self.assertTrue(body["resource"].endswith("/mcp/"))
+        self.assertEqual(len(body["authorization_servers"]), 1)
+
+    def test_authorization_server_metadata(self):
+        response = self.client.get(reverse("oauth_authorization_server_metadata"))
+        body = response.json()
+        for key in ["authorization_endpoint", "token_endpoint", "registration_endpoint"]:
+            self.assertIn(key, body)
+        self.assertIn("S256", body["code_challenge_methods_supported"])
+
+    def test_register_requires_redirect_uris(self):
+        response = self.client.post(
+            reverse("oauth_register"), data=json.dumps({"client_name": "x"}), content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_register_creates_client(self):
+        data = self.register_client()
+        self.assertTrue(OAuthClient.objects.filter(client_id=data["client_id"]).exists())
+        self.assertEqual(data["token_endpoint_auth_method"], "none")
+
+    def test_authorize_without_login_redirects_to_login(self):
+        client = self.register_client()
+        verifier, challenge = pkce_pair()
+        response = self.client.get(
+            reverse("oauth_authorize"),
+            {
+                "response_type": "code",
+                "client_id": client["client_id"],
+                "redirect_uri": self.REDIRECT_URI,
+                "state": "xyz",
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_authorize_rejects_unregistered_redirect_uri(self):
+        client = self.register_client()
+        self.login()
+        _, challenge = pkce_pair()
+        response = self.client.get(
+            reverse("oauth_authorize"),
+            {
+                "response_type": "code",
+                "client_id": client["client_id"],
+                "redirect_uri": "https://evil.example.com/callback",
+                "state": "xyz",
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_authorize_deny_redirects_with_error(self):
+        client = self.register_client()
+        self.login()
+        _, challenge = pkce_pair()
+        response = self.client.post(
+            reverse("oauth_authorize"),
+            {
+                "client_id": client["client_id"],
+                "redirect_uri": self.REDIRECT_URI,
+                "state": "xyz",
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "decision": "deny",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        parsed = urlparse(response.url)
+        self.assertEqual(parse_qs(parsed.query)["error"][0], "access_denied")
+
+    def _get_code(self, client, verifier, challenge, state="xyz"):
+        self.login()
+        response = self.client.post(
+            reverse("oauth_authorize"),
+            {
+                "client_id": client["client_id"],
+                "redirect_uri": self.REDIRECT_URI,
+                "state": state,
+                "code_challenge": challenge,
+                "code_challenge_method": "S256",
+                "decision": "approve",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        parsed = urlparse(response.url)
+        qs = parse_qs(parsed.query)
+        self.assertEqual(qs["state"][0], state)
+        return qs["code"][0]
+
+    def test_full_authorization_code_pkce_flow_then_calls_mcp(self):
+        client = self.register_client()
+        verifier, challenge = pkce_pair()
+        code = self._get_code(client, verifier, challenge)
+
+        token_response = self.client.post(
+            reverse("oauth_token"),
+            {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": self.REDIRECT_URI,
+                "client_id": client["client_id"],
+                "code_verifier": verifier,
+            },
+        )
+        self.assertEqual(token_response.status_code, 200)
+        token_data = token_response.json()
+        self.assertEqual(token_data["token_type"], "Bearer")
+        access_token = token_data["access_token"]
+
+        mcp_response = self.client.post(
+            reverse("mcp_endpoint_oauth"),
+            data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Bearer " + access_token,
+        )
+        self.assertEqual(mcp_response.status_code, 200)
+        names = [t["name"] for t in mcp_response.json()["result"]["tools"]]
+        self.assertIn("push_item", names)
+
+    def test_code_is_single_use(self):
+        client = self.register_client()
+        verifier, challenge = pkce_pair()
+        code = self._get_code(client, verifier, challenge)
+        args = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": self.REDIRECT_URI,
+            "client_id": client["client_id"],
+            "code_verifier": verifier,
+        }
+        first = self.client.post(reverse("oauth_token"), args)
+        second = self.client.post(reverse("oauth_token"), args)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 400)
+
+    def test_wrong_code_verifier_rejected(self):
+        client = self.register_client()
+        verifier, challenge = pkce_pair()
+        code = self._get_code(client, verifier, challenge)
+        response = self.client.post(
+            reverse("oauth_token"),
+            {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": self.REDIRECT_URI,
+                "client_id": client["client_id"],
+                "code_verifier": "wrong-verifier",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_refresh_token_rotates_and_old_one_stops_working(self):
+        client = self.register_client()
+        verifier, challenge = pkce_pair()
+        code = self._get_code(client, verifier, challenge)
+        first = self.client.post(
+            reverse("oauth_token"),
+            {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": self.REDIRECT_URI,
+                "client_id": client["client_id"],
+                "code_verifier": verifier,
+            },
+        ).json()
+
+        refreshed = self.client.post(
+            reverse("oauth_token"),
+            {
+                "grant_type": "refresh_token",
+                "refresh_token": first["refresh_token"],
+                "client_id": client["client_id"],
+            },
+        )
+        self.assertEqual(refreshed.status_code, 200)
+        self.assertNotEqual(refreshed.json()["access_token"], first["access_token"])
+
+        reused = self.client.post(
+            reverse("oauth_token"),
+            {
+                "grant_type": "refresh_token",
+                "refresh_token": first["refresh_token"],
+                "client_id": client["client_id"],
+            },
+        )
+        self.assertEqual(reused.status_code, 400)
+
+    def test_mcp_oauth_endpoint_requires_bearer_token(self):
+        response = self.client.post(
+            reverse("mcp_endpoint_oauth"),
+            data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("resource_metadata", response["WWW-Authenticate"])
+
+    def test_mcp_oauth_endpoint_rejects_unknown_token(self):
+        response = self.client.post(
+            reverse("mcp_endpoint_oauth"),
+            data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Bearer not-a-real-token",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_expired_access_token_rejected(self):
+        client = self.register_client()
+        oauth_client = OAuthClient.objects.get(client_id=client["client_id"])
+        expired = OAuthToken.objects.create(client=oauth_client, user=self.user)
+        OAuthToken.objects.filter(pk=expired.pk).update(expires_at=expired.created_at - timedelta(hours=1))
+        response = self.client.post(
+            reverse("mcp_endpoint_oauth"),
+            data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION="Bearer " + expired.access_token,
+        )
+        self.assertEqual(response.status_code, 401)
