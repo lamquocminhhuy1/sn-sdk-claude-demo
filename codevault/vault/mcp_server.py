@@ -225,19 +225,40 @@ def _process_jsonrpc_body(request, user):
     return JsonResponse(responses[0])
 
 
+def _empty_sse_response():
+    """GET opens the *optional* standalone SSE stream for server-initiated
+    messages (MCP Streamable HTTP transport). We never push anything
+    server-side (every tool here is a synchronous request/response), so a
+    well-formed but immediately-closed stream is the correct reply - not
+    a 405. Some clients (claude.ai's connector included) treat a 405 here
+    as a fatal connection error instead of "this server has no push
+    channel", so this must succeed rather than be rejected."""
+    return HttpResponse(b"", content_type="text/event-stream")
+
+
+def _no_content_response():
+    """DELETE explicitly ends a session. We're stateless (no session to
+    end), so acknowledge it as a no-op rather than rejecting it."""
+    return HttpResponse(status=204)
+
+
 @csrf_exempt
 def mcp_endpoint(request, token):
     """The simple token-in-URL front door (see the module docstring in
     api.py) - for stdio clients, curl, or anything not doing OAuth."""
-    if request.method != "POST":
-        return JsonResponse(
-            rpc_error(None, -32000, "Method not allowed - this endpoint only accepts POST."),
-            status=405,
-        )
     try:
         user = authenticate_token(token)
     except ApiError as exc:
         return JsonResponse(rpc_error(None, -32001, exc.message), status=exc.status)
+
+    if request.method == "GET":
+        return _empty_sse_response()
+    if request.method == "DELETE":
+        return _no_content_response()
+    if request.method != "POST":
+        return JsonResponse(
+            rpc_error(None, -32000, "Method not allowed."), status=405, headers={"Allow": "GET, POST, DELETE"}
+        )
     return _process_jsonrpc_body(request, user)
 
 
@@ -245,17 +266,8 @@ def _resource_metadata_url(request):
     return request.build_absolute_uri("/")[:-1] + reverse("oauth_protected_resource_metadata")
 
 
-@csrf_exempt
-def mcp_endpoint_oauth(request):
-    """The OAuth-protected front door claude.ai's custom connector uses -
-    see oauth.py for the full authorization flow this expects clients to
-    go through before they show up here with a Bearer access token."""
-    if request.method != "POST":
-        return JsonResponse(
-            rpc_error(None, -32000, "Method not allowed - this endpoint only accepts POST."),
-            status=405,
-        )
-
+def _authenticate_oauth_bearer(request):
+    """Returns (user, None) on success, or (None, error_response) on failure."""
     header = request.headers.get("Authorization", "")
     access_token = header[len("Bearer "):].strip() if header.startswith("Bearer ") else ""
     challenge = 'Bearer resource_metadata="{0}"'.format(_resource_metadata_url(request))
@@ -263,19 +275,39 @@ def mcp_endpoint_oauth(request):
     if not access_token:
         response = JsonResponse(rpc_error(None, -32001, "Missing bearer token."), status=401)
         response["WWW-Authenticate"] = challenge
-        return response
+        return None, response
 
     try:
         oauth_token = OAuthToken.objects.select_related("user").get(access_token=access_token)
     except OAuthToken.DoesNotExist:
         response = JsonResponse(rpc_error(None, -32001, "Invalid or expired access token."), status=401)
         response["WWW-Authenticate"] = challenge
-        return response
+        return None, response
 
     if oauth_token.is_expired:
         oauth_token.delete()
         response = JsonResponse(rpc_error(None, -32001, "Invalid or expired access token."), status=401)
         response["WWW-Authenticate"] = challenge
-        return response
+        return None, response
 
-    return _process_jsonrpc_body(request, oauth_token.user)
+    return oauth_token.user, None
+
+
+@csrf_exempt
+def mcp_endpoint_oauth(request):
+    """The OAuth-protected front door claude.ai's custom connector uses -
+    see oauth.py for the full authorization flow this expects clients to
+    go through before they show up here with a Bearer access token."""
+    user, error_response = _authenticate_oauth_bearer(request)
+    if error_response is not None:
+        return error_response
+
+    if request.method == "GET":
+        return _empty_sse_response()
+    if request.method == "DELETE":
+        return _no_content_response()
+    if request.method != "POST":
+        return JsonResponse(
+            rpc_error(None, -32000, "Method not allowed."), status=405, headers={"Allow": "GET, POST, DELETE"}
+        )
+    return _process_jsonrpc_body(request, user)

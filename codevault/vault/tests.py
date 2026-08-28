@@ -669,9 +669,22 @@ class McpServerTests(BaseTestCase):
         response = self.rpc("initialize", {}, url=reverse("mcp_endpoint", args=["not-a-real-token"]))
         self.assertEqual(response.status_code, 401)
 
-    def test_get_not_allowed(self):
+    def test_get_opens_empty_sse_stream_not_405(self):
         response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/event-stream")
+
+    def test_delete_is_a_no_op_not_405(self):
+        response = self.client.delete(self.url)
+        self.assertEqual(response.status_code, 204)
+
+    def test_put_is_still_rejected(self):
+        response = self.client.put(self.url)
         self.assertEqual(response.status_code, 405)
+
+    def test_get_with_wrong_token_still_401s(self):
+        response = self.client.get(reverse("mcp_endpoint", args=["not-a-real-token"]))
+        self.assertEqual(response.status_code, 401)
 
     def test_initialize(self):
         response = self.rpc("initialize", {"protocolVersion": "2025-06-18"})
@@ -902,6 +915,37 @@ class OAuthTests(BaseTestCase):
         self.assertEqual(mcp_response.status_code, 200)
         names = [t["name"] for t in mcp_response.json()["result"]["tools"]]
         self.assertIn("push_item", names)
+
+    def get_access_token(self):
+        client = self.register_client()
+        verifier, challenge = pkce_pair()
+        code = self._get_code(client, verifier, challenge)
+        response = self.client.post(
+            reverse("oauth_token"),
+            {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": self.REDIRECT_URI,
+                "client_id": client["client_id"],
+                "code_verifier": verifier,
+            },
+        )
+        return response.json()["access_token"]
+
+    def test_mcp_oauth_get_opens_empty_sse_stream_not_405(self):
+        access_token = self.get_access_token()
+        response = self.client.get(reverse("mcp_endpoint_oauth"), HTTP_AUTHORIZATION="Bearer " + access_token)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/event-stream")
+
+    def test_mcp_oauth_delete_is_a_no_op_not_405(self):
+        access_token = self.get_access_token()
+        response = self.client.delete(reverse("mcp_endpoint_oauth"), HTTP_AUTHORIZATION="Bearer " + access_token)
+        self.assertEqual(response.status_code, 204)
+
+    def test_mcp_oauth_get_without_token_still_401s(self):
+        response = self.client.get(reverse("mcp_endpoint_oauth"))
+        self.assertEqual(response.status_code, 401)
 
     def test_code_is_single_use(self):
         client = self.register_client()
