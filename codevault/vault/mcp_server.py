@@ -20,15 +20,23 @@ stream. This instance's tools are quick DB reads/writes with no
 server-initiated messages, so no session state or push channel is needed.
 """
 
+import hashlib
 import json
 
 from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import OAuthToken
 
 from .api import ApiError, authenticate_token, op_create_project, op_get_item, op_list_items, op_list_projects, op_push_item
+
+
+def fingerprint(value):
+    """Short, non-secret stand-in for a token/key in logs - lets you match
+    a log line to a specific DB row without ever printing the real secret."""
+    return hashlib.sha256((value or "").encode("utf-8")).hexdigest()[:12]
 
 SERVER_INFO = {"name": "codevault-mcp-remote", "version": "1.0.0"}
 SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"]
@@ -273,6 +281,7 @@ def _authenticate_oauth_bearer(request):
     challenge = 'Bearer resource_metadata="{0}"'.format(_resource_metadata_url(request))
 
     if not access_token:
+        print("[mcp-auth] {0} {1}: no Authorization header at all".format(request.method, request.path))
         response = JsonResponse(rpc_error(None, -32001, "Missing bearer token."), status=401)
         response["WWW-Authenticate"] = challenge
         return None, response
@@ -280,11 +289,24 @@ def _authenticate_oauth_bearer(request):
     try:
         oauth_token = OAuthToken.objects.select_related("user").get(access_token=access_token)
     except OAuthToken.DoesNotExist:
+        print(
+            "[mcp-auth] {0} {1}: token fingerprint={2} not found (known tokens: {3})".format(
+                request.method,
+                request.path,
+                fingerprint(access_token),
+                [fingerprint(t) for t in OAuthToken.objects.values_list("access_token", flat=True)],
+            )
+        )
         response = JsonResponse(rpc_error(None, -32001, "Invalid or expired access token."), status=401)
         response["WWW-Authenticate"] = challenge
         return None, response
 
     if oauth_token.is_expired:
+        print(
+            "[mcp-auth] {0} {1}: token fingerprint={2} expired at {3} (now {4})".format(
+                request.method, request.path, fingerprint(access_token), oauth_token.expires_at, timezone.now()
+            )
+        )
         oauth_token.delete()
         response = JsonResponse(rpc_error(None, -32001, "Invalid or expired access token."), status=401)
         response["WWW-Authenticate"] = challenge

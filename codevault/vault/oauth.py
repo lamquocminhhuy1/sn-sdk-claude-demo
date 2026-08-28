@@ -34,6 +34,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
+from .mcp_server import fingerprint
 from .models import OAuthAuthorizationCode, OAuthClient, OAuthToken
 
 SCOPE = "codevault"
@@ -94,6 +95,7 @@ def register(request):
         client_name=(payload.get("client_name") or "")[:200],
         redirect_uris=redirect_uris,
     )
+    print("[oauth-register] client_id={0} name={1!r} redirect_uris={2}".format(client.client_id, client.client_name, redirect_uris))
     return JsonResponse(
         {
             "client_id": client.client_id,
@@ -147,7 +149,13 @@ def authorize(request):
                 code_challenge_method=code_challenge_method,
                 scope=scope,
             )
+            print(
+                "[oauth-authorize] approved: client_id={0} user={1} code_fingerprint={2}".format(
+                    client_id, request.user.username, fingerprint(auth_code.code)
+                )
+            )
             return _redirect_with_params(redirect_uri, code=auth_code.code, state=state)
+        print("[oauth-authorize] denied: client_id={0} user={1}".format(client_id, request.user.username))
         return _redirect_with_params(redirect_uri, error="access_denied", state=state)
 
     return render(
@@ -201,6 +209,7 @@ def token(request):
         data = request.POST
 
     grant_type = data.get("grant_type")
+    print("[oauth-token] grant_type={0} client_id={1}".format(grant_type, data.get("client_id")))
 
     if grant_type == "authorization_code":
         code_value = data.get("code")
@@ -211,20 +220,32 @@ def token(request):
         try:
             auth_code = OAuthAuthorizationCode.objects.select_related("client", "user").get(code=code_value)
         except OAuthAuthorizationCode.DoesNotExist:
+            print("[oauth-token] authorization_code: no such code (fingerprint={0})".format(fingerprint(code_value)))
             return JsonResponse({"error": "invalid_grant"}, status=400)
 
-        if (
-            auth_code.used
-            or auth_code.is_expired
-            or auth_code.client.client_id != client_id
-            or auth_code.redirect_uri != redirect_uri
-            or not _pkce_matches(code_verifier, auth_code.code_challenge)
-        ):
+        reasons = []
+        if auth_code.used:
+            reasons.append("already used")
+        if auth_code.is_expired:
+            reasons.append("expired at {0}".format(auth_code.expires_at))
+        if auth_code.client.client_id != client_id:
+            reasons.append("client_id mismatch (code was for {0})".format(auth_code.client.client_id))
+        if auth_code.redirect_uri != redirect_uri:
+            reasons.append("redirect_uri mismatch (code was for {0!r})".format(auth_code.redirect_uri))
+        if not _pkce_matches(code_verifier, auth_code.code_challenge):
+            reasons.append("PKCE code_verifier doesn't match code_challenge")
+        if reasons:
+            print("[oauth-token] authorization_code rejected: " + "; ".join(reasons))
             return JsonResponse({"error": "invalid_grant"}, status=400)
 
         auth_code.used = True
         auth_code.save(update_fields=["used"])
         issued = _issue_token(auth_code.client, auth_code.user, auth_code.scope)
+        print(
+            "[oauth-token] issued: client_id={0} user={1} token_fingerprint={2} expires_at={3}".format(
+                client_id, auth_code.user.username, fingerprint(issued.access_token), issued.expires_at
+            )
+        )
         return _token_response(issued)
 
     if grant_type == "refresh_token":
@@ -233,12 +254,19 @@ def token(request):
         try:
             old_token = OAuthToken.objects.select_related("client", "user").get(refresh_token=refresh_value)
         except OAuthToken.DoesNotExist:
+            print("[oauth-token] refresh_token: no such refresh token (fingerprint={0})".format(fingerprint(refresh_value)))
             return JsonResponse({"error": "invalid_grant"}, status=400)
         if old_token.client.client_id != client_id:
+            print("[oauth-token] refresh_token: client_id mismatch (token was for {0})".format(old_token.client.client_id))
             return JsonResponse({"error": "invalid_grant"}, status=400)
 
         issued = _issue_token(old_token.client, old_token.user, old_token.scope)
         old_token.delete()  # rotate: the used refresh token is no longer valid
+        print(
+            "[oauth-token] refreshed: client_id={0} user={1} new_token_fingerprint={2}".format(
+                client_id, old_token.user.username, fingerprint(issued.access_token)
+            )
+        )
         return _token_response(issued)
 
     return JsonResponse({"error": "unsupported_grant_type"}, status=400)
