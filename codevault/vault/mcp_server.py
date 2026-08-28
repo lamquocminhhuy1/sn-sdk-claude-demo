@@ -319,15 +319,25 @@ def _authenticate_oauth_bearer(request):
 def mcp_endpoint_oauth(request):
     """The OAuth-protected front door claude.ai's custom connector uses -
     see oauth.py for the full authorization flow this expects clients to
-    go through before they show up here with a Bearer access token."""
-    user, error_response = _authenticate_oauth_bearer(request)
-    if error_response is not None:
-        return error_response
+    go through before they show up here with a Bearer access token.
 
+    GET and DELETE are intentionally NOT auth-gated: observed in the wild,
+    claude.ai's connector opens the standalone SSE stream (GET) without
+    attaching the Bearer token it just obtained, even though it does send
+    it correctly on POST. Since GET never returns any data (this server
+    never pushes anything - see _empty_sse_response) and DELETE is a
+    stateless no-op, there is nothing sensitive to protect on either, so
+    letting them through unauthenticated unblocks that client behavior
+    without weakening what actually matters: POST, where every tool call
+    (read or write) happens, still requires a valid token."""
     if request.method == "GET":
         return _empty_sse_response()
     if request.method == "DELETE":
         return _no_content_response()
+
+    user, error_response = _authenticate_oauth_bearer(request)
+    if error_response is not None:
+        return error_response
     if request.method != "POST":
         return JsonResponse(
             rpc_error(None, -32000, "Method not allowed."), status=405, headers={"Allow": "GET, POST, DELETE"}

@@ -943,8 +943,24 @@ class OAuthTests(BaseTestCase):
         response = self.client.delete(reverse("mcp_endpoint_oauth"), HTTP_AUTHORIZATION="Bearer " + access_token)
         self.assertEqual(response.status_code, 204)
 
-    def test_mcp_oauth_get_without_token_still_401s(self):
+    def test_mcp_oauth_get_without_token_still_opens_empty_stream(self):
+        # claude.ai's connector opens the GET stream without attaching the
+        # token it just obtained; GET carries no data, so it must not 401.
         response = self.client.get(reverse("mcp_endpoint_oauth"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/event-stream")
+
+    def test_mcp_oauth_delete_without_token_still_no_op(self):
+        response = self.client.delete(reverse("mcp_endpoint_oauth"))
+        self.assertEqual(response.status_code, 204)
+
+    def test_mcp_oauth_post_without_token_still_401s(self):
+        # POST is where actual data flows - this boundary must stay enforced.
+        response = self.client.post(
+            reverse("mcp_endpoint_oauth"),
+            data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}),
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 401)
 
     def test_code_is_single_use(self):
