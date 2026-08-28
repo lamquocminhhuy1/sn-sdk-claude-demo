@@ -638,3 +638,115 @@ class ApiTests(BaseTestCase):
             reverse("api_projects"), HTTP_AUTHORIZATION="Bearer " + old_key
         )
         self.assertEqual(response.status_code, 401)
+
+
+class McpServerTests(BaseTestCase):
+    """The remote MCP endpoint (/mcp/<token>/) that claude.ai's custom
+    connector dialog talks to - same operations as ApiTests, JSON-RPC shape."""
+
+    def setUp(self):
+        super().setUp()
+        self.token = ApiToken.objects.create(owner=self.user)
+        self.url = reverse("mcp_endpoint", args=[self.token.key])
+
+    def rpc(self, method, params=None, msg_id=1, url=None):
+        body = {"jsonrpc": "2.0", "method": method}
+        if msg_id is not None:
+            body["id"] = msg_id
+        if params is not None:
+            body["params"] = params
+        return self.client.post(url or self.url, data=json.dumps(body), content_type="application/json")
+
+    def call_tool(self, name, arguments):
+        response = self.rpc("tools/call", {"name": name, "arguments": arguments})
+        return response, json.loads(response.json()["result"]["content"][0]["text"])
+
+    def test_wrong_token_in_url_returns_401(self):
+        response = self.rpc("initialize", {}, url=reverse("mcp_endpoint", args=["not-a-real-token"]))
+        self.assertEqual(response.status_code, 401)
+
+    def test_get_not_allowed(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_initialize(self):
+        response = self.rpc("initialize", {"protocolVersion": "2025-06-18"})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["id"], 1)
+        self.assertEqual(body["result"]["protocolVersion"], "2025-06-18")
+        self.assertEqual(body["result"]["serverInfo"]["name"], "codevault-mcp-remote")
+
+    def test_initialize_falls_back_for_unknown_protocol_version(self):
+        response = self.rpc("initialize", {"protocolVersion": "1999-01-01"})
+        self.assertEqual(response.json()["result"]["protocolVersion"], "2025-06-18")
+
+    def test_notification_gets_202_and_no_body(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.content, b"")
+
+    def test_tools_list_returns_all_five_tools(self):
+        response = self.rpc("tools/list")
+        names = [t["name"] for t in response.json()["result"]["tools"]]
+        self.assertEqual(
+            set(names), {"list_projects", "create_project", "list_items", "get_item", "push_item"}
+        )
+
+    def test_unknown_method_returns_json_rpc_error(self):
+        response = self.rpc("not/a/real/method")
+        body = response.json()
+        self.assertEqual(body["error"]["code"], -32601)
+
+    def test_call_list_projects(self):
+        response, data = self.call_tool("list_projects", {})
+        names = [p["name"] for p in data["projects"]]
+        self.assertIn("Demo Project", names)
+
+    def test_call_create_project_then_push_and_get_item(self):
+        _, created = self.call_tool(
+            "create_project", {"name": "MCP Remote Project", "scope_type": "scoped_app", "scope_name": "x_mcp_remote"}
+        )
+        self.assertTrue(created["created"])
+        slug = created["project"]["slug"]
+
+        _, pushed = self.call_tool(
+            "push_item",
+            {
+                "project_slug": slug,
+                "kind": "code",
+                "script_type": "script_include",
+                "title": "RemoteUtils",
+                "identifier": "RemoteUtils",
+                "content": "var RemoteUtils = Class.create();",
+            },
+        )
+        self.assertTrue(pushed["created"])
+        uid = pushed["item"]["uid"]
+
+        _, fetched = self.call_tool("get_item", {"uid": uid})
+        self.assertEqual(fetched["item"]["content"], "var RemoteUtils = Class.create();")
+
+        # pushing again with the same identifier updates instead of duplicating
+        _, pushed_again = self.call_tool(
+            "push_item",
+            {"project_slug": slug, "title": "RemoteUtils", "identifier": "RemoteUtils", "content": "v2"},
+        )
+        self.assertFalse(pushed_again["created"])
+        self.assertEqual(Item.objects.filter(project__slug=slug, identifier="RemoteUtils").count(), 1)
+
+    def test_call_unknown_tool_is_isError_not_transport_error(self):
+        response = self.rpc("tools/call", {"name": "no_such_tool", "arguments": {}})
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(body["result"]["isError"])
+
+    def test_cross_user_isolation(self):
+        Project.objects.create(owner=self.other, name="Not Mine")
+        _, data = self.call_tool("list_projects", {})
+        names = [p["name"] for p in data["projects"]]
+        self.assertNotIn("Not Mine", names)

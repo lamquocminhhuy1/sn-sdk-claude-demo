@@ -27,6 +27,22 @@
 </div>
 
 <div class="panel" style="max-width:720px">
+  <h2 style="margin-top:0">Connect claude.ai directly (remote MCP)</h2>
+  <p>Settings &rarr; Connectors &rarr; Add custom connector. Paste this as the <strong>Remote MCP server URL</strong> — the token is baked into the URL itself, no OAuth needed.</p>
+  <p>
+    <input id="mcp-url-value" type="text" readonly value="{{ base_url }}/mcp/{{ token.key }}/"
+           style="font-family:monospace;width:100%;max-width:520px" onclick="this.select()">
+    <button class="copy-btn" data-copy-target="mcp-url-value">&#10064; Copy</button>
+  </p>
+  <p class="helptext">This URL is as sensitive as the token above — anyone who has it can read and push code as you. Regenerating the token above also changes this URL.</p>
+</div>
+
+<div class="panel" style="max-width:720px">
+  <h2 style="margin-top:0">Connect Claude Code / Claude Desktop (local MCP)</h2>
+  <p>Uses the same API through a small local server instead — see <code>mcp-server/README.md</code> in the repo for setup. It needs the same base URL and token as above, passed as <code>CODEVAULT_BASE_URL</code> / <code>CODEVAULT_API_TOKEN</code>.</p>
+</div>
+
+<div class="panel" style="max-width:720px">
   <h2 style="margin-top:0">Endpoints</h2>
   <table class="api-endpoint-table">
     <tr><td><span class="badge">GET</span></td><td><code>/api/v1/projects/</code></td><td>List your projects</td></tr>
