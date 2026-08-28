@@ -28,6 +28,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
+from .cors import cors
 from .models import OAuthToken
 
 from .api import ApiError, authenticate_token, op_create_project, op_get_item, op_list_items, op_list_projects, op_push_item
@@ -251,6 +252,7 @@ def _no_content_response():
 
 
 @csrf_exempt
+@cors
 def mcp_endpoint(request, token):
     """The simple token-in-URL front door (see the module docstring in
     api.py) - for stdio clients, curl, or anything not doing OAuth."""
@@ -316,6 +318,7 @@ def _authenticate_oauth_bearer(request):
 
 
 @csrf_exempt
+@cors
 def mcp_endpoint_oauth(request):
     """The OAuth-protected front door claude.ai's custom connector uses -
     see oauth.py for the full authorization flow this expects clients to

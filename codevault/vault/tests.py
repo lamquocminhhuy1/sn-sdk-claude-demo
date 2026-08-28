@@ -674,6 +674,15 @@ class McpServerTests(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/event-stream")
 
+    def test_preflight_options_succeeds(self):
+        response = self.client.options(self.url)
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["Access-Control-Allow-Origin"], "*")
+
+    def test_post_response_carries_cors_header(self):
+        response = self.rpc("tools/list")
+        self.assertEqual(response["Access-Control-Allow-Origin"], "*")
+
     def test_delete_is_a_no_op_not_405(self):
         response = self.client.delete(self.url)
         self.assertEqual(response.status_code, 204)
@@ -816,6 +825,25 @@ class OAuthTests(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("token_endpoint", response.json())
 
+    def test_token_endpoint_preflight_options_succeeds(self):
+        response = self.client.options(reverse("oauth_token"))
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["Access-Control-Allow-Origin"], "*")
+
+    def test_register_endpoint_preflight_options_succeeds(self):
+        response = self.client.options(reverse("oauth_register"))
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["Access-Control-Allow-Origin"], "*")
+
+    def test_metadata_endpoints_carry_cors_header(self):
+        response = self.client.get(reverse("oauth_protected_resource_metadata"))
+        self.assertEqual(response["Access-Control-Allow-Origin"], "*")
+
+    def test_token_response_carries_no_store_cache_headers(self):
+        response = self.client.post(reverse("oauth_token"), {"grant_type": "bogus"})
+        self.assertEqual(response["Cache-Control"], "no-store")
+        self.assertEqual(response["Pragma"], "no-cache")
+
     def test_register_requires_redirect_uris(self):
         response = self.client.post(
             reverse("oauth_register"), data=json.dumps({"client_name": "x"}), content_type="application/json"
@@ -950,6 +978,11 @@ class OAuthTests(BaseTestCase):
         response = self.client.get(reverse("mcp_endpoint_oauth"), HTTP_AUTHORIZATION="Bearer " + access_token)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/event-stream")
+
+    def test_mcp_oauth_preflight_options_succeeds(self):
+        response = self.client.options(reverse("mcp_endpoint_oauth"))
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response["Access-Control-Allow-Origin"], "*")
 
     def test_mcp_oauth_delete_is_a_no_op_not_405(self):
         access_token = self.get_access_token()

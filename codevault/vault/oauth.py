@@ -34,6 +34,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
+from .cors import cors
 from .mcp_server import fingerprint
 from .models import OAuthAuthorizationCode, OAuthClient, OAuthToken
 
@@ -44,6 +45,7 @@ def _base_url(request):
     return request.build_absolute_uri("/")[:-1]
 
 
+@cors
 @require_GET
 def protected_resource_metadata(request):
     base = _base_url(request)
@@ -55,6 +57,7 @@ def protected_resource_metadata(request):
     )
 
 
+@cors
 @require_GET
 def authorization_server_metadata(request):
     base = _base_url(request)
@@ -74,6 +77,7 @@ def authorization_server_metadata(request):
 
 
 @csrf_exempt
+@cors
 @require_http_methods(["POST"])
 def register(request):
     """Dynamic Client Registration (RFC 7591). Open registration - anyone
@@ -185,8 +189,19 @@ def _issue_token(client, user, scope):
     return OAuthToken.objects.create(client=client, user=user, scope=scope)
 
 
+def _token_json(data, status=200):
+    """RFC 6749 5.1: token endpoint responses (success or error) MUST carry
+    Cache-Control: no-store and Pragma: no-cache - they contain, or relate
+    to, credentials. A client enforcing this strictly could otherwise
+    refuse to use a token response missing these."""
+    response = JsonResponse(data, status=status)
+    response["Cache-Control"] = "no-store"
+    response["Pragma"] = "no-cache"
+    return response
+
+
 def _token_response(token):
-    return JsonResponse(
+    return _token_json(
         {
             "access_token": token.access_token,
             "token_type": "Bearer",
@@ -198,13 +213,14 @@ def _token_response(token):
 
 
 @csrf_exempt
+@cors
 @require_http_methods(["POST"])
 def token(request):
     if (request.content_type or "").startswith("application/json"):
         try:
             data = json.loads(request.body.decode("utf-8")) if request.body else {}
         except (ValueError, UnicodeDecodeError):
-            return JsonResponse({"error": "invalid_request"}, status=400)
+            return _token_json({"error": "invalid_request"}, status=400)
     else:
         data = request.POST
 
@@ -221,7 +237,7 @@ def token(request):
             auth_code = OAuthAuthorizationCode.objects.select_related("client", "user").get(code=code_value)
         except OAuthAuthorizationCode.DoesNotExist:
             print("[oauth-token] authorization_code: no such code (fingerprint={0})".format(fingerprint(code_value)))
-            return JsonResponse({"error": "invalid_grant"}, status=400)
+            return _token_json({"error": "invalid_grant"}, status=400)
 
         reasons = []
         if auth_code.used:
@@ -236,7 +252,7 @@ def token(request):
             reasons.append("PKCE code_verifier doesn't match code_challenge")
         if reasons:
             print("[oauth-token] authorization_code rejected: " + "; ".join(reasons))
-            return JsonResponse({"error": "invalid_grant"}, status=400)
+            return _token_json({"error": "invalid_grant"}, status=400)
 
         auth_code.used = True
         auth_code.save(update_fields=["used"])
@@ -255,10 +271,10 @@ def token(request):
             old_token = OAuthToken.objects.select_related("client", "user").get(refresh_token=refresh_value)
         except OAuthToken.DoesNotExist:
             print("[oauth-token] refresh_token: no such refresh token (fingerprint={0})".format(fingerprint(refresh_value)))
-            return JsonResponse({"error": "invalid_grant"}, status=400)
+            return _token_json({"error": "invalid_grant"}, status=400)
         if old_token.client.client_id != client_id:
             print("[oauth-token] refresh_token: client_id mismatch (token was for {0})".format(old_token.client.client_id))
-            return JsonResponse({"error": "invalid_grant"}, status=400)
+            return _token_json({"error": "invalid_grant"}, status=400)
 
         issued = _issue_token(old_token.client, old_token.user, old_token.scope)
         old_token.delete()  # rotate: the used refresh token is no longer valid
@@ -269,4 +285,4 @@ def token(request):
         )
         return _token_response(issued)
 
-    return JsonResponse({"error": "unsupported_grant_type"}, status=400)
+    return _token_json({"error": "unsupported_grant_type"}, status=400)
