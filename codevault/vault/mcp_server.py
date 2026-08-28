@@ -215,17 +215,37 @@ def handle_message(user, message):
     return rpc_result(msg_id, result)
 
 
+def _summarize_response(resp):
+    if "error" in resp:
+        return "error(code={0}, msg={1!r})".format(resp["error"]["code"], resp["error"]["message"])
+    result = resp.get("result", {})
+    if isinstance(result, dict) and "isError" in result:
+        return "result(isError={0})".format(result["isError"])
+    return "result(keys={0})".format(list(result.keys()) if isinstance(result, dict) else type(result).__name__)
+
+
 def _process_jsonrpc_body(request, user):
+    raw_body = request.body.decode("utf-8", errors="replace") if request.body else ""
+    print("[mcp-rpc] POST {0} user={1} raw_body={2}".format(request.path, user.username, raw_body[:1000]))
+
     try:
         body = json.loads(request.body.decode("utf-8")) if request.body else None
     except (ValueError, UnicodeDecodeError):
+        print("[mcp-rpc] -> parse error")
         return JsonResponse(rpc_error(None, -32700, "Parse error: invalid JSON"), status=400)
 
     if body is None:
+        print("[mcp-rpc] -> empty body error")
         return JsonResponse(rpc_error(None, -32600, "Invalid Request: empty body"), status=400)
 
     messages = body if isinstance(body, list) else [body]
+    methods = [m.get("method") for m in messages if isinstance(m, dict)]
     responses = [r for r in (handle_message(user, m) for m in messages) if r is not None]
+    print(
+        "[mcp-rpc] methods={0} -> responses=[{1}]".format(
+            methods, ", ".join(_summarize_response(r) for r in responses) or "none (202)"
+        )
+    )
 
     if not responses:
         return HttpResponse(status=202)
