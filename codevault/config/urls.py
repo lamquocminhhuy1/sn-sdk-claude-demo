@@ -18,10 +18,24 @@ urlpatterns = [
         oauth.protected_resource_metadata,
         name="oauth_protected_resource_metadata",
     ),
+    # RFC 9728's own path-insertion algorithm (and, empirically, claude.ai's
+    # client) derives this from the protected resource's path (/mcp/) rather
+    # than using the resource_metadata URL served in WWW-Authenticate -
+    # serve the identical metadata at the path it actually requests too.
+    path(
+        ".well-known/oauth-protected-resource/mcp",
+        oauth.protected_resource_metadata,
+        name="oauth_protected_resource_metadata_mcp_suffix",
+    ),
     path(
         ".well-known/oauth-authorization-server",
         oauth.authorization_server_metadata,
         name="oauth_authorization_server_metadata",
+    ),
+    path(
+        ".well-known/oauth-authorization-server/mcp",
+        oauth.authorization_server_metadata,
+        name="oauth_authorization_server_metadata_mcp_suffix",
     ),
     path("oauth/register/", oauth.register, name="oauth_register"),
     path("oauth/authorize/", oauth.authorize, name="oauth_authorize"),

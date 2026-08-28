@@ -803,6 +803,19 @@ class OAuthTests(BaseTestCase):
             self.assertIn(key, body)
         self.assertIn("S256", body["code_challenge_methods_supported"])
 
+    def test_protected_resource_metadata_also_served_at_mcp_suffixed_path(self):
+        # RFC 9728 path-insertion (and claude.ai's client, observed live)
+        # derives /.well-known/oauth-protected-resource/mcp from the
+        # resource path (/mcp/) instead of using the WWW-Authenticate hint.
+        response = self.client.get("/.well-known/oauth-protected-resource/mcp")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["resource"].endswith("/mcp/"))
+
+    def test_authorization_server_metadata_also_served_at_mcp_suffixed_path(self):
+        response = self.client.get("/.well-known/oauth-authorization-server/mcp")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("token_endpoint", response.json())
+
     def test_register_requires_redirect_uris(self):
         response = self.client.post(
             reverse("oauth_register"), data=json.dumps({"client_name": "x"}), content_type="application/json"
