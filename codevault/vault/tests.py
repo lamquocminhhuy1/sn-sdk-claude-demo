@@ -793,6 +793,34 @@ class RemoteMcpTests(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("token_endpoint", response.json())
 
+    def test_metadata_advertises_https_behind_a_tls_terminating_proxy(self):
+        # Regression test for a real production failure: PythonAnywhere
+        # terminates TLS at its proxy and forwards plain HTTP with the
+        # original scheme in X-Forwarded-Proto. Without
+        # SECURE_PROXY_SSL_HEADER, build_absolute_uri() advertises http://
+        # endpoints in both discovery documents, and claude.ai's connector
+        # refuses to run an authorization code flow against a non-HTTPS
+        # authorization server.
+        proxied = {"HTTP_X_FORWARDED_PROTO": "https"}
+
+        resource = self.client.get("/.well-known/oauth-protected-resource", **proxied).json()
+        self.assertTrue(resource["resource"].startswith("https://"), resource)
+        for server in resource["authorization_servers"]:
+            self.assertTrue(server.startswith("https://"), resource)
+
+        server_metadata = self.client.get("/.well-known/oauth-authorization-server", **proxied).json()
+        for key in ["issuer", "authorization_endpoint", "token_endpoint", "registration_endpoint"]:
+            self.assertTrue(server_metadata[key].startswith("https://"), server_metadata)
+
+    def test_registration_response_uses_https_behind_a_tls_terminating_proxy(self):
+        response = self.client.post(
+            reverse("oauth2_provider:dcr-register"),
+            data=json.dumps({"client_name": "claude.ai", "redirect_uris": [self.REDIRECT_URI]}),
+            content_type="application/json",
+            HTTP_X_FORWARDED_PROTO="https",
+        )
+        self.assertTrue(response.json()["registration_client_uri"].startswith("https://"), response.content)
+
     def test_token_response_carries_no_store_cache_headers(self):
         token = self.get_access_token()
         response = self.post_token(

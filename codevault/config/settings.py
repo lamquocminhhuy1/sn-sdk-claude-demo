@@ -33,6 +33,24 @@ CSRF_TRUSTED_ORIGINS = [
     "https://*.pythonanywhere.com",
 ]
 
+# PythonAnywhere terminates TLS at its own front-end proxy and forwards to
+# this app over plain HTTP, passing the original scheme in X-Forwarded-Proto.
+# Without this setting Django's request.is_secure() is False for every
+# request, so request.build_absolute_uri() - which is what builds every URL
+# in the OAuth discovery documents (vault/oauth_metadata.py, and
+# django-oauth-toolkit's own issuer / authorization_endpoint /
+# token_endpoint / registration_endpoint) - advertises http:// endpoints.
+# Spec-compliant OAuth clients, claude.ai's MCP connector included, refuse
+# to run an authorization code flow against a non-HTTPS authorization
+# server, so the connector fails with a generic "couldn't reach" error even
+# though every endpoint works when called directly.
+#
+# Set unconditionally rather than under `if not DEBUG:` - the deployment
+# only sets DJANGO_DEBUG when it remembers to, and getting this wrong is
+# silent. Locally nothing sends X-Forwarded-Proto, so is_secure() stays
+# False there exactly as before.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
