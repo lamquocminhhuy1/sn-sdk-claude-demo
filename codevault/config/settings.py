@@ -111,6 +111,20 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "project_list"
 LOGOUT_REDIRECT_URL = "login"
 
+# Django sets Cross-Origin-Opener-Policy: same-origin on every response by
+# default. That's fine for the app itself, but /oauth/authorize/ is meant
+# to be opened as a POPUP by a cross-origin caller (claude.ai's connector
+# flow) which typically signals completion back to its opener via
+# window.opener.postMessage(...). COOP: same-origin severs window.opener
+# the moment the popup navigates to our (cross-origin, from claude.ai's
+# point of view) origin, silently breaking that handshake even though the
+# OAuth exchange itself completes successfully server-side - which matches
+# exactly what was observed: every step logs as succeeding, then nothing.
+# Disabling COOP site-wide costs us a defense against a niche
+# cross-origin side-channel class of attack that isn't a real concern for
+# this app; unblocking the OAuth popup flow is worth that trade here.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SESSION_COOKIE_SECURE = True
