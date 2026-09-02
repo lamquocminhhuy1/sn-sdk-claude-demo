@@ -669,11 +669,11 @@ class RemoteMcpTests(BaseTestCase):
     def register_client(self, **extra):
         # token_endpoint_auth_method: "none" is what makes this a public,
         # PKCE-only client (no client_secret) - the whole point of this
-        # flow. Every real MCP client (claude.ai included) sends this
-        # explicitly; omitting it falls back to RFC 7591's own default of
-        # "client_secret_basic" (confidential), which then 401s at the
-        # token endpoint since nothing here ever authenticates as a
-        # confidential client.
+        # flow. Passed explicitly here so most tests exercise a known-clean
+        # public client regardless of the server's own default; see
+        # test_register_without_auth_method_defaults_to_public for what
+        # actually happens when a client omits it, as claude.ai's connector
+        # does in production (CodeVaultDCRView in vault/dcr_views.py).
         payload = dict(
             {"client_name": "claude.ai", "redirect_uris": [self.REDIRECT_URI], "token_endpoint_auth_method": "none"},
             **extra,
@@ -815,6 +815,41 @@ class RemoteMcpTests(BaseTestCase):
         data = self.register_client(token_endpoint_auth_method="none")
         self.assertEqual(data["token_endpoint_auth_method"], "none")
         self.assertNotIn("client_secret", data)
+
+    def test_register_without_auth_method_defaults_to_public(self):
+        # Regression test for a real production failure: claude.ai's
+        # connector registers without token_endpoint_auth_method at all.
+        # django-oauth-toolkit's stock DynamicClientRegistrationView
+        # defaults an omitted field to "client_secret_basic" (confidential),
+        # and claude.ai never sends the resulting client_secret back at the
+        # token endpoint - every token exchange 401s with invalid_client
+        # even though registration, login and consent all succeed.
+        # CodeVaultDCRView (vault/dcr_views.py) defaults omitted requests to
+        # "none" (public, PKCE-only) instead.
+        response = self.client.post(
+            reverse("oauth2_provider:dcr-register"),
+            data=json.dumps({"client_name": "claude.ai", "redirect_uris": [self.REDIRECT_URI]}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        data = response.json()
+        self.assertEqual(data["token_endpoint_auth_method"], "none")
+        self.assertNotIn("client_secret", data)
+
+        # And the resulting client can actually complete a token exchange
+        # with nothing but PKCE, exactly like claude.ai's connector does.
+        verifier, challenge = pkce_pair()
+        code = self._get_code(data, challenge)
+        token_response = self.post_token(
+            {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": self.REDIRECT_URI,
+                "client_id": data["client_id"],
+                "code_verifier": verifier,
+            }
+        )
+        self.assertEqual(token_response.status_code, 200, token_response.content)
 
     # ---------------------------------------------------------- authorize
 

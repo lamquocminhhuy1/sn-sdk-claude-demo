@@ -4,11 +4,28 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from django.utils.module_loading import import_string
 from oauth2_provider import urls as oauth2_urls
+from oauth2_provider.views.dynamic_client_registration import DynamicClientRegistrationManagementView
 from rest_framework.permissions import IsAuthenticated
 
 from vault import api, views
+from vault.dcr_views import CodeVaultDCRView
 from vault.mcp_views import CodeVaultMCPView
 from vault.oauth_metadata import urlpatterns as oauth_metadata_urlpatterns
+
+# oauth2_urls.dcr_urlpatterns ships DynamicClientRegistrationView unmodified,
+# which defaults an omitted token_endpoint_auth_method to "client_secret_basic"
+# (confidential) - the exact default that breaks claude.ai's connector (see
+# vault/dcr_views.py). Only the registration route needs swapping for our
+# subclass; the RFC 7592 management route (register/<client_id>/) is
+# unaffected and reused as-is.
+codevault_dcr_urlpatterns = [
+    path("register/", CodeVaultDCRView.as_view(), name="dcr-register"),
+    path(
+        "register/<str:client_id>/",
+        DynamicClientRegistrationManagementView.as_view(),
+        name="dcr-register-management",
+    ),
+]
 
 # Mounting oauth2_provider's URLs at two different prefixes under `include()`
 # calls that both claim the "oauth2_provider" namespace looks reasonable but
@@ -27,7 +44,7 @@ from vault.oauth_metadata import urlpatterns as oauth_metadata_urlpatterns
 oauth2_all_urlpatterns = (
     oauth_metadata_urlpatterns
     + oauth2_urls.base_urlpatterns
-    + oauth2_urls.dcr_urlpatterns
+    + codevault_dcr_urlpatterns
     + oauth2_urls.management_urlpatterns
 )
 
