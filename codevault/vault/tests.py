@@ -793,6 +793,19 @@ class RemoteMcpTests(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("token_endpoint", response.json())
 
+    def test_unauthenticated_mcp_challenge_points_at_resource_metadata(self):
+        # MCP's authorization spec has the client discover the authorization
+        # server from this challenge (RFC 9728 resource_metadata). A bare
+        # `Bearer realm="api"` leaves a client that doesn't guess the
+        # well-known path with nowhere to go.
+        response = self.rpc("tools/list")
+        self.assertEqual(response.status_code, 401)
+        challenge = response["WWW-Authenticate"]
+        self.assertIn("resource_metadata=", challenge)
+        url = re.search(r'resource_metadata="([^"]+)"', challenge).group(1)
+        self.assertTrue(url.endswith("/.well-known/oauth-protected-resource"), challenge)
+        self.assertEqual(self.client.get(urlparse(url).path).status_code, 200)
+
     def test_metadata_advertises_https_behind_a_tls_terminating_proxy(self):
         # Regression test for a real production failure: PythonAnywhere
         # terminates TLS at its proxy and forwards plain HTTP with the
