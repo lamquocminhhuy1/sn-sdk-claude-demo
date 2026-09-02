@@ -1,8 +1,35 @@
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import include, path
+from django.utils.module_loading import import_string
+from oauth2_provider import urls as oauth2_urls
+from rest_framework.permissions import IsAuthenticated
 
-from vault import api, mcp_server, oauth, views
+from vault import api, views
+from vault.mcp_views import CodeVaultMCPView
+from vault.oauth_metadata import urlpatterns as oauth_metadata_urlpatterns
+
+# Mounting oauth2_provider's URLs at two different prefixes under `include()`
+# calls that both claim the "oauth2_provider" namespace looks reasonable but
+# is broken: Django only lets one of the two resolvers answer reverse()
+# lookups for a shared namespace (system check urls.W005 warns about this
+# exact case), so a view in the OTHER mount - e.g. OAuthServerMetadataView
+# building "authorization_endpoint" via reverse("oauth2_provider:authorize")
+# - silently gets NoReverseMatch and the field just vanishes from the
+# discovery document. All of it goes in ONE include() at the site root
+# instead: RFC 8414/9728 require the .well-known/ paths there anyway (see
+# vault/oauth_metadata.py), and none of authorize/, token/, register/,
+# applications/, authorized_tokens/ collide with this app's own routes -
+# oidc_urlpatterns is the one part of oauth2_provider.urls deliberately
+# left out, since its logout/ name would shadow our own and we don't use
+# OIDC (no id_token issuance) anyway.
+oauth2_all_urlpatterns = (
+    oauth_metadata_urlpatterns
+    + oauth2_urls.base_urlpatterns
+    + oauth2_urls.dcr_urlpatterns
+    + oauth2_urls.management_urlpatterns
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -11,35 +38,20 @@ urlpatterns = [
     path("api/v1/projects/", api.projects_collection, name="api_projects"),
     path("api/v1/projects/<slug:slug>/items/", api.items_collection, name="api_items"),
     path("api/v1/items/<uuid:uid>/", api.item_detail, name="api_item_detail"),
-    path("mcp/", mcp_server.mcp_endpoint_oauth, name="mcp_endpoint_oauth"),
-    path("mcp/<str:token>/", mcp_server.mcp_endpoint, name="mcp_endpoint"),
+    # Same construction as mcp_server.urls itself, but using our
+    # CodeVaultMCPView (exempts GET/DELETE from auth - see vault/mcp_views.py)
+    # instead of the stock MCPServerStreamableHttpView.
     path(
-        ".well-known/oauth-protected-resource",
-        oauth.protected_resource_metadata,
-        name="oauth_protected_resource_metadata",
+        getattr(settings, "DJANGO_MCP_ENDPOINT", "mcp"),
+        CodeVaultMCPView.as_view(
+            permission_classes=[IsAuthenticated] if getattr(settings, "DJANGO_MCP_AUTHENTICATION_CLASSES", None) else [],
+            authentication_classes=[
+                import_string(cls) for cls in getattr(settings, "DJANGO_MCP_AUTHENTICATION_CLASSES", [])
+            ],
+        ),
+        name="mcp_server_streamable_http_endpoint",
     ),
-    # RFC 9728's own path-insertion algorithm (and, empirically, claude.ai's
-    # client) derives this from the protected resource's path (/mcp/) rather
-    # than using the resource_metadata URL served in WWW-Authenticate -
-    # serve the identical metadata at the path it actually requests too.
-    path(
-        ".well-known/oauth-protected-resource/mcp",
-        oauth.protected_resource_metadata,
-        name="oauth_protected_resource_metadata_mcp_suffix",
-    ),
-    path(
-        ".well-known/oauth-authorization-server",
-        oauth.authorization_server_metadata,
-        name="oauth_authorization_server_metadata",
-    ),
-    path(
-        ".well-known/oauth-authorization-server/mcp",
-        oauth.authorization_server_metadata,
-        name="oauth_authorization_server_metadata_mcp_suffix",
-    ),
-    path("oauth/register/", oauth.register, name="oauth_register"),
-    path("oauth/authorize/", oauth.authorize, name="oauth_authorize"),
-    path("oauth/token/", oauth.token, name="oauth_token"),
+    path("", include((oauth2_all_urlpatterns, "oauth2_provider"), namespace="oauth2_provider")),
     path(
         "login/",
         auth_views.LoginView.as_view(template_name="registration/login.html"),

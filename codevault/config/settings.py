@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "oauth2_provider",
+    "mcp_server",
     "vault",
 ]
 
@@ -110,6 +113,44 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "project_list"
 LOGOUT_REDIRECT_URL = "login"
+
+# --- Remote MCP server (django-mcp-server) + OAuth 2.0 (django-oauth-toolkit) ---
+# Together these serve claude.ai's "Add custom connector" flow at /mcp/:
+# discovery -> dynamic client registration -> authorize+consent -> token
+# exchange (PKCE) -> Bearer-authenticated MCP tool calls. See vault/mcp.py
+# for the tool definitions and vault/drf_auth.py for the extra bearer-token
+# auth path that lets Claude Code/Desktop's local MCP client authenticate
+# with a plain ApiToken instead of going through the full OAuth dance.
+DJANGO_MCP_ENDPOINT = "mcp/"
+DJANGO_MCP_AUTHENTICATION_CLASSES = [
+    "oauth2_provider.contrib.rest_framework.OAuth2Authentication",
+    "vault.drf_auth.ApiTokenAuthentication",
+]
+# Stateless: no Mcp-Session-Id required/issued. Every tool call here is a
+# quick synchronous DB read/write with no server-initiated messages, so
+# there is no session state worth tracking, and requiring a session ID
+# is one more thing an MCP client can get subtly wrong.
+DJANGO_MCP_GLOBAL_SERVER_CONFIG = {"stateless": True}
+
+OAUTH2_PROVIDER = {
+    "SCOPES": {"codevault": "Read and write your CodeVault projects"},
+    "DEFAULT_SCOPES": ["codevault"],
+    "PKCE_REQUIRED": True,
+    # Open registration: claude.ai self-registers a client before the user
+    # has logged in anywhere, same trust model most public MCP servers use.
+    # The actual access grant is still gated behind the user's own login at
+    # the /authorize/ consent screen.
+    "DCR_ENABLED": True,
+    "DCR_REGISTRATION_PERMISSION_CLASSES": ("oauth2_provider.dcr.AllowAllDCRPermission",),
+    # claude.ai registers a public, PKCE-only client (no client_secret ever
+    # stored or sent) - advertise that explicitly, and narrow the advertised
+    # grant types to only the two this app actually wants supported. Neither
+    # setting changes what the server *accepts* (DCR and the token endpoint
+    # don't consult these), just what discovery *advertises*, so this is
+    # purely about giving a spec-compliant client an accurate picture.
+    "OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED": ["none", "client_secret_basic", "client_secret_post"],
+    "OAUTH2_GRANT_TYPES_SUPPORTED": ["authorization_code", "refresh_token"],
+}
 
 # Django sets Cross-Origin-Opener-Policy: same-origin on every response by
 # default. That's fine for the app itself, but /oauth/authorize/ is meant

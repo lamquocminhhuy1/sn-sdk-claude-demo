@@ -50,8 +50,7 @@
     <tr><td><span class="badge">GET</span></td><td><code>/api/v1/projects/&lt;slug&gt;/items/</code></td><td>List items in a project</td></tr>
     <tr><td><span class="badge">POST</span></td><td><code>/api/v1/projects/&lt;slug&gt;/items/</code></td><td>Push (create or update) an item</td></tr>
     <tr><td><span class="badge">GET</span></td><td><code>/api/v1/items/&lt;uid&gt;/</code></td><td>Fetch one item's full code + metadata</td></tr>
-    <tr><td><span class="badge">POST</span></td><td><code>/mcp/</code></td><td>MCP endpoint, OAuth-protected (for claude.ai's connector)</td></tr>
-    <tr><td><span class="badge">POST</span></td><td><code>/mcp/&lt;token&gt;/</code></td><td>MCP endpoint, token-in-URL (for Claude Code / Desktop / curl)</td></tr>
+    <tr><td><span class="badge">POST</span></td><td><code>/mcp/</code></td><td>MCP endpoint — accepts either an OAuth access token (claude.ai's connector) or your API token as a Bearer header (Claude Code / Desktop / curl)</td></tr>
   </table>
   <p class="helptext">Push matches an existing item by <code>uid</code> &gt; <code>identifier</code> &gt; (<code>kind</code> + <code>title</code>), in that order — pushing the same script twice updates it instead of duplicating it. Screenshots (<code>kind=image</code>) aren't supported through the API.</p>
 </div>
