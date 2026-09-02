@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34">
+  <rect width="34" height="34" rx="8" fill="#4f46e5"/>
+  <text x="17" y="17" text-anchor="middle" dominant-baseline="central"
+        font-family="'JetBrains Mono', 'DejaVu Sans', ui-monospace, monospace"
+        font-weight="700" font-size="13" letter-spacing="0.3" fill="#ffffff">CV</text>
+</svg>
