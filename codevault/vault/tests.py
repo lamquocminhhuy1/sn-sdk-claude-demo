@@ -371,6 +371,33 @@ class ItemTests(BaseTestCase):
             response = self.client.get(reverse("serve_media", args=[item.upload.name]))
             self.assertEqual(response.status_code, 302)
 
+    def test_media_is_browser_cacheable_and_revalidates(self):
+        # Each thumbnail is a full Django request through this view, on a
+        # deployment with a single web worker - without these headers a page
+        # of screenshots re-fetches every one of them on every load.
+        self.login()
+        with override_settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            upload = SimpleUploadedFile("shot.png", TINY_PNG, content_type="image/png")
+            self.client.post(
+                reverse("item_create", args=[self.project.slug]),
+                {"kind": "image", "script_type": "other", "title": "Cached shot",
+                 "upload": upload, "language": "text", "content": "", "note": ""},
+            )
+            item = Item.objects.get(title="Cached shot")
+            url = reverse("serve_media", args=[item.upload.name])
+
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            # private: these are per-user files behind login, never for a
+            # shared proxy to hold.
+            self.assertIn("private", response["Cache-Control"])
+            self.assertIn("max-age=", response["Cache-Control"])
+            self.assertTrue(response["Last-Modified"])
+
+            # A revalidating browser gets a bodyless 304 instead of the file.
+            response = self.client.get(url, HTTP_IF_MODIFIED_SINCE=response["Last-Modified"])
+            self.assertEqual(response.status_code, 304)
+
 
 class DependencyTests(BaseTestCase):
     def make_script(self, title, content, identifier="", script_type="other"):

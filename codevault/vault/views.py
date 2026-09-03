@@ -7,8 +7,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotModified
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import http_date
+from django.views.static import was_modified_since
 
 from .forms import ItemForm, ProjectForm
 from .models import ApiToken, Item, Project
@@ -290,8 +292,25 @@ def serve_media(request, path):
     if not Item.objects.filter(owner=request.user, upload=clean).exists():
         raise Http404
 
-    content_type = mimetypes.guess_type(str(full_path))[0] or "application/octet-stream"
-    response = FileResponse(open(full_path, "rb"), content_type=content_type)
+    # Every thumbnail on a project or item page comes back through this view,
+    # so without cache headers a single page load costs one full Django
+    # request per image, every time - and the deployment runs on one web
+    # worker, so those queue up behind each other and behind the page itself.
+    # Uploads are effectively immutable (storage renames rather than
+    # overwrites on a name clash), so let the browser keep them and skip the
+    # request entirely. "private" because these files are per-user and behind
+    # login: a shared proxy must never hold on to them.
+    stat = full_path.stat()
+    last_modified = http_date(stat.st_mtime)
+
+    if was_modified_since(request.headers.get("If-Modified-Since"), stat.st_mtime):
+        content_type = mimetypes.guess_type(str(full_path))[0] or "application/octet-stream"
+        response = FileResponse(open(full_path, "rb"), content_type=content_type)
+    else:
+        response = HttpResponseNotModified()
+
+    response["Last-Modified"] = last_modified
+    response["Cache-Control"] = "private, max-age=86400"
     if request.GET.get("download"):
         response["Content-Disposition"] = (
             'attachment; filename="' + full_path.name + '"'
