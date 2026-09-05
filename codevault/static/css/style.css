@@ -130,30 +130,72 @@ code { font-family: var(--mono); }
 
 .app { display: flex; min-height: 100vh; }
 
-.sidebar {
-  width: 260px; flex-shrink: 0;
+/* Icon rail: a slim, permanently-dark strip (VSCode/Linear-style "activity
+   bar") that stays put whichever way the light/dark toggle is set, so it
+   reads as one fixed piece of chrome rather than repainting with the page.
+   It's the only nav left once the labeled sidebar is collapsed. */
+.icon-rail {
+  width: 56px; flex-shrink: 0;
   position: sticky; top: 0; height: 100vh;
-  display: flex; flex-direction: column;
-  padding: 20px 16px 20px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 0; gap: 22px;
+  background: #1b1c22;
 }
-.brand { display: flex; align-items: center; gap: 12px; padding: 0 4px 20px; }
-.brand:hover { text-decoration: none; }
-.brand .logo {
-  width: 34px; height: 34px; border-radius: var(--r-lg); flex-shrink: 0;
+.rail-logo {
+  width: 32px; height: 32px; border-radius: var(--r-lg); flex-shrink: 0;
   background: var(--primary); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px; letter-spacing: 0.02em;
+  font-weight: 700; font-size: 12.5px; letter-spacing: 0.02em;
 }
-.brand .brand-name { color: var(--text); font-weight: 700; font-size: 17px; letter-spacing: -0.02em; line-height: 1.2; }
-.brand .brand-sub { color: var(--faint); font-size: 12px; font-weight: 400; }
+.rail-logo:hover { text-decoration: none; background: var(--primary-hover); }
+.rail-nav { display: flex; flex-direction: column; gap: 6px; }
+.rail-link {
+  width: 34px; height: 34px; border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center;
+  color: #9a9aad;
+}
+.rail-link svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.rail-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; text-decoration: none; }
+.rail-link.active { background: #33343f; color: #fff; }
+.rail-avatar {
+  margin-top: auto; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--primary-tint); color: var(--primary-light);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 700;
+}
+
+.sidebar {
+  width: 240px; flex-shrink: 0;
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  padding: 18px 16px 20px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  transition: width 0.15s, padding 0.15s, opacity 0.1s;
+}
+.sidebar-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 0 4px 18px; }
+.brand { min-width: 0; }
+.brand:hover { text-decoration: none; }
+.brand .brand-eyebrow {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--faint); white-space: nowrap;
+}
+.brand .brand-name { display: block; color: var(--text); font-weight: 700; font-size: 17px; letter-spacing: -0.02em; line-height: 1.3; white-space: nowrap; }
+
+.rail-toggle {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: var(--r-badge);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.rail-toggle:hover { color: var(--text); background: var(--surface-3); }
+.rail-toggle svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
 
 .side-cta {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   background: var(--primary); color: #fff; border: none; cursor: pointer;
   border-radius: var(--r); padding: 10px 14px; margin-bottom: 20px;
-  font-family: inherit; font-size: 13.5px; font-weight: 600;
+  font-family: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden;
   transition: background 0.15s;
 }
 .side-cta:hover { background: var(--primary-hover); color: #fff; text-decoration: none; }
@@ -163,38 +205,43 @@ code { font-family: var(--mono); }
   position: relative;
   display: flex; align-items: center; gap: 12px; width: 100%;
   padding: 9px 12px; border-radius: var(--r);
-  color: var(--muted); font-size: 13.5px; font-weight: 500;
+  color: var(--muted); font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden;
   background: none; border: none; cursor: pointer; font-family: inherit; text-align: left;
   transition: background 0.12s, color 0.12s;
 }
 .side-link:hover { background: rgba(255, 255, 255, 0.03); color: var(--text); text-decoration: none; }
 html[data-theme="light"] .side-link:hover { background: rgba(0, 0, 0, 0.03); }
-.side-link.active { background: var(--surface-3); color: var(--text); }
-.side-link.active::before {
-  content: ""; position: absolute; left: -16px; top: 6px; bottom: 6px; width: 2px;
-  background: var(--primary); border-radius: 2px;
-}
-html[data-theme="light"] .side-link.active { background: var(--surface-2); }
+.side-link.active { background: var(--primary-tint); color: var(--primary-light); }
+html[data-theme="light"] .side-link.active { color: var(--primary); }
 .side-ico { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
 .side-ico svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.7; }
 .side-footer { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
 .side-footer form { margin: 0; }
+
+/* Collapsed: the labeled panel shrinks away and the dark icon rail becomes
+   the only nav - a manual, sticky-across-visits alternative to the
+   below-860px responsive collapse (which stays automatic and unaffected). */
+html[data-sidebar="collapsed"] .sidebar {
+  width: 0; padding-left: 0; padding-right: 0; border-right: none; opacity: 0;
+}
 
 .main { flex: 1; min-width: 0; }
 .container { max-width: 1180px; margin: 0 auto; padding: 32px 36px 80px; }
 
 @media (max-width: 860px) {
   .app { flex-direction: column; }
+  .icon-rail { display: none; }
+  html[data-sidebar="collapsed"] .sidebar { width: 100%; padding: 10px 14px; opacity: 1; }
   .sidebar {
     width: 100%; height: auto; position: static;
     flex-direction: row; align-items: center; flex-wrap: wrap; gap: 4px;
     border-right: none; border-bottom: 1px solid var(--border);
     padding: 10px 14px;
   }
-  .brand { padding: 0 8px 0 0; }
+  .sidebar-head { padding: 0 8px 0 0; }
+  .rail-toggle { display: none; }
   .side-cta { margin: 0 8px 0 0; padding: 7px 12px; }
   .side-nav { flex-direction: row; }
-  .side-link.active::before { display: none; }
   .side-footer { margin-top: 0; margin-left: auto; flex-direction: row; }
   .container { padding: 24px 18px 60px; }
 }
@@ -282,26 +329,28 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 
 .badge {
   display: inline-flex; align-items: center;
-  padding: 2px 9px; border-radius: 999px;
+  padding: 3px 10px; border-radius: 5px;
   font-family: var(--mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em;
-  background: transparent; color: var(--muted);
-  border: 1px solid var(--border-strong); white-space: nowrap;
+  background: var(--surface-3); color: var(--muted);
+  border: none; white-space: nowrap;
 }
-.badge.script_include { color: #c3a5ff; border-color: #7c5bd4; }
-.badge.business_rule { color: #89ceff; border-color: #2f7fb8; }
-.badge.client_script { color: #fbd35c; border-color: #b8912f; }
-.badge.ui_page, .badge.ui_action, .badge.ui_macro { color: #f0a6d8; border-color: #b85f9c; }
-.badge.scheduled_job, .badge.fix_script { color: #ffb695; border-color: #c46a3a; }
-.badge.rest_api { color: #7fe3d2; border-color: #35a08f; }
-.badge.widget { color: #b1c9ff; border-color: #5f7fc4; }
-html[data-theme="light"] .badge.script_include { color: #6d3bbf; border-color: #a97ee8; }
-html[data-theme="light"] .badge.business_rule { color: #0a5f96; border-color: #5aa5d4; }
-html[data-theme="light"] .badge.client_script { color: #8a5d10; border-color: #d4ad5a; }
+/* Filled tint pills, one hue per component type - background + text drawn
+   from the same color so it reads as a solid tag rather than an outline. */
+.badge.script_include { color: #c3a5ff; background: rgba(124, 91, 212, 0.16); }
+.badge.business_rule { color: #89ceff; background: rgba(47, 127, 184, 0.18); }
+.badge.client_script { color: #fbd35c; background: rgba(184, 145, 47, 0.18); }
+.badge.ui_page, .badge.ui_action, .badge.ui_macro { color: #f0a6d8; background: rgba(184, 95, 156, 0.18); }
+.badge.scheduled_job, .badge.fix_script { color: #ffb695; background: rgba(196, 106, 58, 0.18); }
+.badge.rest_api { color: #7fe3d2; background: rgba(53, 160, 143, 0.18); }
+.badge.widget { color: #b1c9ff; background: rgba(95, 127, 196, 0.18); }
+html[data-theme="light"] .badge.script_include { color: #6d3bbf; background: rgba(124, 91, 212, 0.1); }
+html[data-theme="light"] .badge.business_rule { color: #0a5f96; background: rgba(10, 95, 150, 0.09); }
+html[data-theme="light"] .badge.client_script { color: #8a5d10; background: rgba(138, 93, 16, 0.1); }
 html[data-theme="light"] .badge.ui_page, html[data-theme="light"] .badge.ui_action,
-html[data-theme="light"] .badge.ui_macro { color: #a13c7f; border-color: #d47fb6; }
-html[data-theme="light"] .badge.scheduled_job, html[data-theme="light"] .badge.fix_script { color: #a34d17; border-color: #d4854a; }
-html[data-theme="light"] .badge.rest_api { color: #0c7264; border-color: #4ab5a3; }
-html[data-theme="light"] .badge.widget { color: #3b5bbf; border-color: #7f9ae8; }
+html[data-theme="light"] .badge.ui_macro { color: #a13c7f; background: rgba(161, 60, 127, 0.1); }
+html[data-theme="light"] .badge.scheduled_job, html[data-theme="light"] .badge.fix_script { color: #a34d17; background: rgba(163, 77, 23, 0.1); }
+html[data-theme="light"] .badge.rest_api { color: #0c7264; background: rgba(12, 114, 100, 0.1); }
+html[data-theme="light"] .badge.widget { color: #3b5bbf; background: rgba(59, 91, 191, 0.1); }
 
 .chip {
   display: inline-flex; align-items: center;
@@ -422,7 +471,8 @@ html[data-theme="light"] .chip.scope-chip.scoped { color: #6d3bbf; border-color:
   color: var(--muted); border: none; background: transparent;
 }
 .pillbar .tab:hover { color: var(--text); text-decoration: none; }
-.pillbar .tab.active { background: var(--primary); color: #fff; }
+.pillbar .tab.active { background: var(--surface); color: var(--primary-light); box-shadow: var(--pop-shadow); }
+html[data-theme="light"] .pillbar .tab.active { color: var(--primary); }
 .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
 
 /* ---- Dependency tree ---- */

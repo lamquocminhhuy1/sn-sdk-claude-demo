@@ -124,7 +124,16 @@
           matchBrackets: true,
           autoCloseBrackets: true,
           styleActiveLine: true,
-          viewportMargin: Infinity,
+          // viewportMargin: Infinity turns off CodeMirror's virtual
+          // scrolling, forcing it to render every line as real DOM up
+          // front. ServiceNow XML update-set exports routinely run tens of
+          // thousands of lines, and content search (project_detail's q=
+          // matches inside item content) makes those exact large items the
+          // ones people click into most - rendering one this way is a
+          // multi-second main-thread block that reads as the browser
+          // hanging. A generous but finite margin still makes scrolling
+          // feel seamless without paying for the whole document at once.
+          viewportMargin: 100,
           extraKeys: {
             "Ctrl-/": "toggleComment",
             "Cmd-/": "toggleComment",
@@ -187,12 +196,19 @@
           theme: cmTheme(),
           lineNumbers: true,
           readOnly: true,
-          viewportMargin: Infinity
+          // See the matching comment in initEditors() above: this holder is
+          // already capped to 62vh and scrolls internally (.cm-viewer{
+          // overflow:auto} in the CSS), so Infinity bought nothing but the
+          // cost of rendering the whole file - the exact freeze a big XML
+          // export triggers.
+          viewportMargin: 100
         });
         cmInstances.push(view);
 
         // Give the holder a concrete height so the user can drag-resize it
         // (CSS resize: vertical). The editor fills whatever height it has.
+        // getScrollInfo().height reflects CodeMirror's estimated total
+        // document height, which it tracks even without full rendering.
         var contentHeight = view.getScrollInfo().height + 8;
         var maxInitial = Math.round(window.innerHeight * 0.62);
         holder.style.height = Math.max(140, Math.min(contentHeight, maxInitial)) + "px";
@@ -226,6 +242,25 @@
         cmInstances[i].setOption("theme", cmTheme());
       }
       updateThemeButton();
+    });
+  }
+
+  /* ---- Sidebar collapse ------------------------------------------------ */
+
+  function initSidebarToggle() {
+    var btn = document.getElementById("sidebar-toggle");
+    if (!btn) { return; }
+    btn.addEventListener("click", function () {
+      var collapsed = document.documentElement.getAttribute("data-sidebar") === "collapsed";
+      var next = collapsed ? "" : "collapsed";
+      if (next) {
+        document.documentElement.setAttribute("data-sidebar", next);
+      } else {
+        document.documentElement.removeAttribute("data-sidebar");
+      }
+      try { localStorage.setItem("cv-sidebar-collapsed", next ? "1" : "0"); } catch (err) { /* ignore */ }
+      btn.setAttribute("aria-expanded", next ? "false" : "true");
+      refreshEditors();
     });
   }
 
@@ -612,6 +647,7 @@
     initIdentifierToggle();
     initProjectScopeToggle();
     initThemeToggle();
+    initSidebarToggle();
     initDepsTree();
     initDepsFilter();
   });
