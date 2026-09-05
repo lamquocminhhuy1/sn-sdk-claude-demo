@@ -1088,6 +1088,26 @@ class RemoteMcpTests(BaseTestCase):
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.content, b"")
 
+    def test_empty_post_body_is_a_no_op_not_a_400(self):
+        # Regression test for a real production failure: an authenticated
+        # POST /mcp/ with a genuinely empty body (Content-Length: 0) was
+        # observed twice within 30ms of each other right after a real
+        # OAuth token exchange - almost certainly a keepalive/warmup ping,
+        # not a JSON-RPC call. There is no way to parse "" as JSON-RPC, so
+        # both DRF's own parser and the mcp SDK 400 on it; treat it the
+        # same harmless way an all-notification batch is treated instead
+        # of failing the connection.
+        token = self.get_access_token()["access_token"]
+        response = self.client.post(
+            reverse("mcp_server_streamable_http_endpoint"),
+            data=b"",
+            content_type="application/json",
+            HTTP_ACCEPT=MCP_ACCEPT,
+            HTTP_AUTHORIZATION="Bearer " + token,
+        )
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.content, b"")
+
     def test_batch_of_two_tool_calls_returns_both_results_in_order(self):
         token = self.get_access_token()["access_token"]
         response = self.rpc_batch(

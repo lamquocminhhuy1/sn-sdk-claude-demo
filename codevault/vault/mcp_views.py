@@ -52,7 +52,21 @@ class CodeVaultMCPView(MCPServerStreamableHttpView):
         notifications (no "id") are dropped, matching JSON-RPC batch
         semantics; everything else is collected into a JSON-RPC batch
         response array.
+
+        Also no-ops a genuinely empty POST body. Observed in production,
+        authenticated (a valid Bearer token, twice within 30ms of each
+        other - a keepalive or connection-warmup ping is the likeliest
+        explanation, not a real JSON-RPC call): there is no way to parse
+        "" as a JSON-RPC message, and forwarding it either to DRF's own
+        parser or on to the SDK 400s either way ("Parse error" /
+        "Validation error" depending on which side rejects it first).
+        Nothing about an empty body is actionable, so it's acknowledged
+        the same way an all-notification batch already is instead of
+        failing the connection over what's likely inconsequential.
         """
+        if not request.body:
+            return HttpResponse(status=202)
+
         if not isinstance(request.data, list):
             return super().post(request, *args, **kwargs)
 
