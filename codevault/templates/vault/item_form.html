@@ -2,7 +2,13 @@
 
 {% block title %}{% if is_edit %}Edit item{% else %}New item{% endif %} · CodeVault{% endblock %}
 
-{% block extra_head %}{% include "vault/_codemirror_assets.html" %}{% endblock %}
+{% block extra_head %}
+  {% include "vault/_codemirror_assets.html" %}
+  {% load static %}
+  <script src="{% static 'vendor/js-beautify/beautify.js' %}"></script>
+  <script src="{% static 'vendor/js-beautify/beautify-css.js' %}"></script>
+  <script src="{% static 'vendor/js-beautify/beautify-html.js' %}"></script>
+{% endblock %}
 
 {% block content %}
 <div class="breadcrumb">
@@ -40,29 +46,60 @@
       {{ form.html_content.errors }}
       <div class="field code-part" id="html-part">
         <label for="id_html_content" data-part-label>HTML (Jelly)</label>
-        <div class="editor-card">{{ form.html_content }}</div>
+        <div class="editor-card">
+          <div class="editor-toolbar" data-editor-for="id_html_content">
+            <span class="toolbar-actions">
+              <button type="button" class="tb-btn" data-action="comment" title="Toggle comment (Ctrl+/)">Comment</button>
+              <button type="button" class="tb-btn" data-action="format" title="Format code">Format</button>
+              <button type="button" class="tb-btn" data-action="find" title="Find (Ctrl+F)">Find</button>
+            </span>
+          </div>
+          {{ form.html_content }}
+        </div>
       </div>
 
       {{ form.client_content.errors }}
       <div class="field code-part" id="client-part">
         <label for="id_client_content" data-part-label>Client Script</label>
-        <div class="editor-card">{{ form.client_content }}</div>
+        <div class="editor-card">
+          <div class="editor-toolbar" data-editor-for="id_client_content">
+            <span class="toolbar-actions">
+              <button type="button" class="tb-btn" data-action="comment" title="Toggle comment (Ctrl+/)">Comment</button>
+              <button type="button" class="tb-btn" data-action="format" title="Format code">Format</button>
+              <button type="button" class="tb-btn" data-action="find" title="Find (Ctrl+F)">Find</button>
+            </span>
+          </div>
+          {{ form.client_content }}
+        </div>
       </div>
 
       {{ form.css_content.errors }}
       <div class="field code-part" id="css-part">
         <label for="id_css_content">CSS</label>
-        <div class="editor-card">{{ form.css_content }}</div>
+        <div class="editor-card">
+          <div class="editor-toolbar" data-editor-for="id_css_content">
+            <span class="toolbar-actions">
+              <button type="button" class="tb-btn" data-action="comment" title="Toggle comment (Ctrl+/)">Comment</button>
+              <button type="button" class="tb-btn" data-action="format" title="Format code">Format</button>
+              <button type="button" class="tb-btn" data-action="find" title="Find (Ctrl+F)">Find</button>
+            </span>
+          </div>
+          {{ form.css_content }}
+        </div>
       </div>
 
       {{ form.content.errors }}
       <div class="field" id="content-field">
         <label for="id_content" id="content-label">Script</label>
         <div class="editor-card">
-          <div class="editor-toolbar">
+          <div class="editor-toolbar" data-editor-for="id_content">
             <span id="language-row">{{ form.language }}</span>
+            <span class="toolbar-actions">
+              <button type="button" class="tb-btn" data-action="comment" title="Toggle comment (Ctrl+/)">Comment</button>
+              <button type="button" class="tb-btn" data-action="format" title="Format code">Format</button>
+              <button type="button" class="tb-btn" data-action="find" title="Find (Ctrl+F)">Find</button>
+            </span>
             <span class="kbd-hint">
-              <span><kbd>Ctrl</kbd>+<kbd>/</kbd> comment</span>
               <span><kbd>Ctrl</kbd>+<kbd>V</kbd> paste</span>
             </span>
           </div>

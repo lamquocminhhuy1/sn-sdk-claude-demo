@@ -92,6 +92,7 @@ class Item(models.Model):
         FIX_SCRIPT = "fix_script", "Fix Script"
         REST_API = "rest_api", "Scripted REST API"
         WIDGET = "widget", "Widget"
+        XML = "xml", "XML"
         OTHER = "other", "Other"
 
     class SubType(models.TextChoices):

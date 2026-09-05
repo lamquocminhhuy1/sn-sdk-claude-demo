@@ -109,6 +109,12 @@ def project_detail(request, slug):
             | Q(table_name__icontains=query)
         )
 
+    sort = request.GET.get("sort", "")
+    if sort == "modified_asc":
+        items = items.order_by("updated_at")
+    elif sort == "modified_desc":
+        items = items.order_by("-updated_at")
+
     paginator = Paginator(items, 12)
     page = paginator.get_page(request.GET.get("page"))
 
@@ -121,6 +127,7 @@ def project_detail(request, slug):
             "kind": kind,
             "stype": stype,
             "query": query,
+            "sort": sort,
             "kinds": Item.Kind.choices,
             "script_types": Item.ScriptType.choices,
         },

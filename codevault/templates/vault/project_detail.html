@@ -36,6 +36,7 @@
       <input type="text" name="q" value="{{ query }}" placeholder="Filter items by name or identifier...">
     </span>
     {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
     <select name="stype" onchange="this.form.submit()" title="Filter by script type">
       <option value="">Script Type</option>
       {% for value, label in script_types %}
@@ -45,10 +46,10 @@
     <button class="btn secondary small" type="submit">Search</button>
   </form>
   <span class="pillbar">
-    <a class="tab {% if not kind %}active{% endif %}" href="?q={{ query|urlencode }}&amp;stype={{ stype }}">All</a>
+    <a class="tab {% if not kind %}active{% endif %}" href="?q={{ query|urlencode }}&amp;stype={{ stype }}&amp;sort={{ sort }}">All</a>
     {% for value, label in kinds %}
       <a class="tab {% if kind == value %}active{% endif %}"
-         href="?kind={{ value }}&amp;q={{ query|urlencode }}&amp;stype={{ stype }}">{{ label }}</a>
+         href="?kind={{ value }}&amp;q={{ query|urlencode }}&amp;stype={{ stype }}&amp;sort={{ sort }}">{{ label }}</a>
     {% endfor %}
   </span>
 </div>
@@ -58,7 +59,16 @@
     <div class="table-head">
       <span style="flex:1">Name</span>
       <span style="width:160px">Type</span>
-      <span style="width:130px;text-align:right">Last Modified</span>
+      <span style="width:130px;text-align:right">
+        <a class="sort-link {% if sort %}active{% endif %}"
+           href="?kind={{ kind }}&amp;stype={{ stype }}&amp;q={{ query|urlencode }}&amp;sort={% if sort == 'modified_desc' %}modified_asc{% else %}modified_desc{% endif %}"
+           title="Sort by last modified">
+          Last Modified
+          {% if sort == 'modified_asc' %}<span class="sort-arrow">&#9650;</span>
+          {% elif sort == 'modified_desc' %}<span class="sort-arrow">&#9660;</span>
+          {% endif %}
+        </a>
+      </span>
     </div>
     <div class="file-list">
       {% for item in page.object_list %}
@@ -94,11 +104,11 @@
   {% if page.has_other_pages %}
     <div class="pagination">
       {% if page.has_previous %}
-        <a href="?page={{ page.previous_page_number }}&amp;kind={{ kind }}&amp;stype={{ stype }}&amp;q={{ query|urlencode }}">&laquo; Prev</a>
+        <a href="?page={{ page.previous_page_number }}&amp;kind={{ kind }}&amp;stype={{ stype }}&amp;q={{ query|urlencode }}&amp;sort={{ sort }}">&laquo; Prev</a>
       {% endif %}
       <span class="current">{{ page.number }} / {{ page.paginator.num_pages }}</span>
       {% if page.has_next %}
-        <a href="?page={{ page.next_page_number }}&amp;kind={{ kind }}&amp;stype={{ stype }}&amp;q={{ query|urlencode }}">Next &raquo;</a>
+        <a href="?page={{ page.next_page_number }}&amp;kind={{ kind }}&amp;stype={{ stype }}&amp;q={{ query|urlencode }}&amp;sort={{ sort }}">Next &raquo;</a>
       {% endif %}
     </div>
   {% endif %}

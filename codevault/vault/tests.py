@@ -3,12 +3,14 @@ import hashlib
 import json
 import re
 import tempfile
+from datetime import timedelta
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import ApiToken, Dependency, Item, Project
 from .services import build_dependency_tree, rebuild_project_dependencies
@@ -229,6 +231,31 @@ class ItemTests(BaseTestCase):
         )
         self.assertContains(response, "The BR")
         self.assertNotContains(response, "The SI")
+
+    def test_sort_by_last_modified(self):
+        self.login()
+        older = Item.objects.create(
+            owner=self.user, project=self.project, kind="code", title="Older", content="a",
+        )
+        newer = Item.objects.create(
+            owner=self.user, project=self.project, kind="code", title="Newer", content="b",
+        )
+        Item.objects.filter(pk=older.pk).update(updated_at=timezone.now() - timedelta(days=1))
+        Item.objects.filter(pk=newer.pk).update(updated_at=timezone.now())
+
+        response = self.client.get(
+            reverse("project_detail", args=[self.project.slug]), {"sort": "modified_asc"}
+        )
+        titles = [item.title for item in response.context["page"].object_list]
+        self.assertEqual(titles.index("Older"), 0)
+        self.assertLess(titles.index("Older"), titles.index("Newer"))
+
+        response = self.client.get(
+            reverse("project_detail", args=[self.project.slug]), {"sort": "modified_desc"}
+        )
+        titles = [item.title for item in response.context["page"].object_list]
+        self.assertEqual(titles.index("Newer"), 0)
+        self.assertLess(titles.index("Newer"), titles.index("Older"))
 
     def test_client_script_captures_servicenow_fields(self):
         self.login()

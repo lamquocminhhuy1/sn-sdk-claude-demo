@@ -77,6 +77,13 @@
 
   var editor = null;
   var cmInstances = [];
+  var editorsByFieldId = {};
+
+  var FORMATTERS = {
+    "text/javascript": function (text) { return window.js_beautify(text); },
+    "text/css": function (text) { return window.css_beautify(text); },
+    "text/html": function (text) { return window.html_beautify(text); }
+  };
 
   function isLight() {
     return document.documentElement.getAttribute("data-theme") === "light";
@@ -148,6 +155,7 @@
         });
         cm.on("change", function () { cm.save(); });
         cmInstances.push(cm);
+        editorsByFieldId[area.id] = cm;
         if (partMode === "main") {
           editor = cm;
         }
@@ -158,7 +166,67 @@
     if (languageSelect && editor) {
       languageSelect.addEventListener("change", function () {
         editor.setOption("mode", currentMode());
+        updateFormatButtonState(editor);
       });
+    }
+
+    initEditorToolbars();
+  }
+
+  /* ---- Editor toolbar: comment / format / find ------------------------ */
+
+  function updateFormatButtonState(cm) {
+    var btn = document.querySelector('.editor-toolbar[data-editor-for="' + cm.getTextArea().id + '"] [data-action="format"]');
+    if (!btn) { return; }
+    var supported = typeof FORMATTERS[cm.getOption("mode")] === "function" && typeof window.js_beautify === "function";
+    btn.disabled = !supported;
+    btn.title = supported ? "Format code" : "Formatting isn't supported for this language";
+  }
+
+  function initEditorToolbars() {
+    var toolbars = document.querySelectorAll(".editor-toolbar[data-editor-for]");
+    var i;
+    for (i = 0; i < toolbars.length; i++) {
+      (function (bar) {
+        var fieldId = bar.getAttribute("data-editor-for");
+        var commentBtn = bar.querySelector('[data-action="comment"]');
+        var formatBtn = bar.querySelector('[data-action="format"]');
+        var findBtn = bar.querySelector('[data-action="find"]');
+
+        function cm() { return editorsByFieldId[fieldId]; }
+
+        if (commentBtn) {
+          commentBtn.addEventListener("click", function () {
+            var inst = cm();
+            if (inst) { inst.execCommand("toggleComment"); inst.focus(); }
+          });
+        }
+        if (findBtn) {
+          findBtn.addEventListener("click", function () {
+            var inst = cm();
+            if (inst) { inst.execCommand("find"); }
+          });
+        }
+        if (formatBtn) {
+          formatBtn.addEventListener("click", function () {
+            var inst = cm();
+            if (!inst || formatBtn.disabled) { return; }
+            var formatter = FORMATTERS[inst.getOption("mode")];
+            if (!formatter) { return; }
+            try {
+              var cursor = inst.getCursor();
+              inst.setValue(formatter(inst.getValue()));
+              inst.setCursor(cursor);
+              inst.focus();
+            } catch (err) {
+              // Malformed source the beautifier can't parse: leave it untouched
+              // rather than risk mangling the user's code.
+            }
+          });
+          var inst = cm();
+          if (inst) { updateFormatButtonState(inst); }
+        }
+      })(toolbars[i]);
     }
   }
 
@@ -414,6 +482,7 @@
       partLabels: { "html-part": "HTML Template", "client-part": "Client Controller" },
       contentLabel: "Server Script"
     },
+    xml: { contentLabel: "XML Content" },
     other: { contentLabel: "Source Code" }
   };
   var DEFAULT_PART_LABELS = { "html-part": "HTML (Jelly)", "client-part": "Client Script" };
@@ -500,6 +569,7 @@
     }
     if (editor) {
       editor.setOption("mode", currentMode());
+      updateFormatButtonState(editor);
     }
     applyScriptType();
   }
