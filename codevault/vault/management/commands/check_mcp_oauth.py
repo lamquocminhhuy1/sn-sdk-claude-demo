@@ -324,3 +324,39 @@ class Command(BaseCommand):
         if response.status_code != 200 or "error" in body:
             self.fail("tools/call list_projects", response.content.decode()[:800])
         self.ok("tools/call list_projects", body["result"]["content"][0]["text"][:200])
+
+        # Real clients commonly batch initialize with notifications/initialized
+        # into one JSON array POST (JSON-RPC 2.0 allows this). The mcp SDK's
+        # transport only accepts a single message object and 400s on an
+        # array unless CodeVaultMCPView.post() splits it first - this is
+        # exactly what broke a real connection after OAuth had already
+        # succeeded, so it's worth checking on its own.
+        response = self.request(
+            "post",
+            reverse("mcp_server_streamable_http_endpoint"),
+            data=json.dumps(
+                [
+                    {
+                        "jsonrpc": "2.0", "id": 4, "method": "initialize",
+                        "params": {
+                            "protocolVersion": "2025-06-18",
+                            "capabilities": {},
+                            "clientInfo": {"name": "check_mcp_oauth", "version": "1.0.0"},
+                        },
+                    },
+                    {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                ]
+            ),
+            content_type="application/json",
+            HTTP_ACCEPT=MCP_ACCEPT,
+            HTTP_AUTHORIZATION="Bearer " + access_token,
+        )
+        if response.status_code != 200:
+            self.fail(
+                "batched initialize + notifications/initialized",
+                "status " + str(response.status_code) + " " + response.content.decode()[:800],
+            )
+        batch_body = response.json()
+        if not isinstance(batch_body, list) or len(batch_body) != 1 or "result" not in batch_body[0]:
+            self.fail("batched initialize + notifications/initialized", batch_body)
+        self.ok("batched initialize + notifications/initialized -> split correctly")

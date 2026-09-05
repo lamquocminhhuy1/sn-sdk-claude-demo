@@ -14,8 +14,14 @@ only POST, where every tool call (read or write) actually happens, keeps
 requiring a valid token.
 """
 
+import json
+import logging
+
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from mcp_server.views import MCPServerStreamableHttpView
+
+logger = logging.getLogger("vault.mcp")
 
 
 class CodeVaultMCPView(MCPServerStreamableHttpView):
@@ -23,6 +29,43 @@ class CodeVaultMCPView(MCPServerStreamableHttpView):
         if self.request.method in ("GET", "DELETE"):
             return []
         return super().get_permissions()
+
+    def post(self, request, *args, **kwargs):
+        """Split a JSON-RPC batch (an array body) into individual calls.
+
+        JSON-RPC 2.0 allows bundling several requests/notifications into
+        one POST as a JSON array, and MCP clients commonly pair
+        `initialize` with `notifications/initialized` this way. The
+        installed mcp SDK's streamable HTTP transport only accepts a
+        single message object per POST - reproduced directly: posting a
+        two-message array gets back HTTP 400 with "Validation error: ...
+        Input should be a valid dictionary or instance of JSONRPCRequest
+        ... input_type=list". That 400 was observed in production right
+        after a real, successful OAuth token exchange, which is exactly
+        the point in the flow where a client sends its first batched
+        initialize.
+
+        Each element is handed to the SDK as its own request in turn
+        (overwriting the DRF request's cached parsed body - `.data`
+        checks that cache before re-parsing, so this doesn't touch the
+        raw bytes or re-trigger content-type negotiation). Responses to
+        notifications (no "id") are dropped, matching JSON-RPC batch
+        semantics; everything else is collected into a JSON-RPC batch
+        response array.
+        """
+        if not isinstance(request.data, list):
+            return super().post(request, *args, **kwargs)
+
+        results = []
+        for message in request.data:
+            request._full_data = message
+            response = super().post(request, *args, **kwargs)
+            if isinstance(message, dict) and "id" in message:
+                results.append(json.loads(response.content) if response.content else None)
+
+        if not results:
+            return HttpResponse(status=202)
+        return JsonResponse(results, safe=False)
 
     def finalize_response(self, request, response, *args, **kwargs):
         """Point the 401 challenge at this resource's metadata document.
@@ -40,4 +83,14 @@ class CodeVaultMCPView(MCPServerStreamableHttpView):
         if response.status_code == 401:
             metadata_url = request.build_absolute_uri(reverse("oauth2_provider:oauth-resource-metadata"))
             response["WWW-Authenticate"] = 'Bearer realm="api", resource_metadata="{}"'.format(metadata_url)
+        elif response.status_code == 400:
+            # Kept as a safety net: if some other shape of request still
+            # 400s, this logs the exact body instead of leaving us to
+            # guess again.
+            body = getattr(request, "body", b"")
+            logger.warning(
+                "POST /mcp/ 400: content-type=%r body=%r",
+                request.headers.get("Content-Type"),
+                body[:2000],
+            )
         return response

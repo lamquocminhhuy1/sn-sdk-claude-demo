@@ -789,6 +789,17 @@ class RemoteMcpTests(BaseTestCase):
         self.assertNotIn("error", body, body)
         return response, json.loads(body["result"]["content"][0]["text"])
 
+    def rpc_batch(self, messages, token=None):
+        headers = {"HTTP_ACCEPT": MCP_ACCEPT}
+        if token:
+            headers["HTTP_AUTHORIZATION"] = "Bearer " + token
+        return self.client.post(
+            reverse("mcp_server_streamable_http_endpoint"),
+            data=json.dumps(messages),
+            content_type="application/json",
+            **headers,
+        )
+
     # ------------------------------------------------------ metadata / CORS
 
     def test_protected_resource_metadata_points_at_mcp(self):
@@ -1044,6 +1055,53 @@ class RemoteMcpTests(BaseTestCase):
         self.assertEqual(response.status_code, 200)
         names = [t["name"] for t in response.json()["result"]["tools"]]
         self.assertIn("list_projects", names)
+
+    def test_batch_initialize_plus_notification_is_split(self):
+        # Regression test for a real production failure: claude.ai batches
+        # initialize with notifications/initialized into one JSON array
+        # POST, which the installed mcp SDK's transport rejects outright
+        # (its JSONRPCMessage model validates a single object, not a list) -
+        # confirmed by reproducing the exact 400 "Validation error: ...
+        # input_type=list" against production. CodeVaultMCPView.post()
+        # splits the batch and re-assembles a JSON-RPC batch response,
+        # dropping the notification (no "id") per JSON-RPC batch semantics.
+        token = self.get_access_token()["access_token"]
+        response = self.rpc_batch(
+            [
+                {
+                    "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                    "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}},
+                },
+                {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            ],
+            token=token,
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        body = response.json()
+        self.assertEqual(len(body), 1)
+        self.assertEqual(body[0]["id"], 1)
+        self.assertIn("result", body[0])
+
+    def test_batch_of_only_notifications_gets_no_response_body(self):
+        token = self.get_access_token()["access_token"]
+        response = self.rpc_batch([{"jsonrpc": "2.0", "method": "notifications/initialized"}], token=token)
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.content, b"")
+
+    def test_batch_of_two_tool_calls_returns_both_results_in_order(self):
+        token = self.get_access_token()["access_token"]
+        response = self.rpc_batch(
+            [
+                {"jsonrpc": "2.0", "id": 10, "method": "tools/list"},
+                {"jsonrpc": "2.0", "id": 11, "method": "tools/call", "params": {"name": "list_projects", "arguments": {}}},
+            ],
+            token=token,
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        body = response.json()
+        self.assertEqual([item["id"] for item in body], [10, 11])
+        self.assertIn("tools", body[0]["result"])
+        self.assertIn("content", body[1]["result"])
 
     # --------------------------------------------------------------- tools
 
